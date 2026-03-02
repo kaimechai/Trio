@@ -53,6 +53,12 @@ struct Preferences: JSON, Equatable {
     var enableSMB_high_bg_target: Decimal = 110
     var threshold_setting: Decimal = 60
     var updateInterval: Decimal = 20
+    // SAFETY_GUARDS
+    var maxTempBasalDurationMinutes: Decimal = 30 // DASH legal: 30..720 (cancel is 0 but UI can avoid 0)
+    var maxTempBasalAgeMinutes: Decimal = 30 // watchdog cancel if active too long
+    var cgmStaleMinutes: Decimal = 15 // stale CGM revert
+    var allowCancelDuringManualTempBasal: Bool = false
+    var minTempBasalFloorUph: Decimal = 0.05 // DASH increment
 }
 
 extension Preferences {
@@ -108,6 +114,12 @@ extension Preferences {
         case enableSMB_high_bg_target
         case threshold_setting
         case updateInterval
+        // SAFETY_GUARDS
+        case maxTempBasalDurationMinutes
+        case maxTempBasalAgeMinutes
+        case cgmStaleMinutes
+        case allowCancelDuringManualTempBasal
+        case minTempBasalFloorUph
     }
 }
 
@@ -326,6 +338,23 @@ extension Preferences: Decodable {
 
         if let updateInterval = try? container.decode(Decimal.self, forKey: .updateInterval) {
             preferences.updateInterval = updateInterval
+        }
+
+        // SAFETY_GUARDS
+        if let v = try? container.decode(Decimal.self, forKey: .maxTempBasalDurationMinutes) {
+            preferences.maxTempBasalDurationMinutes = v
+        }
+        if let v = try? container.decode(Decimal.self, forKey: .maxTempBasalAgeMinutes) {
+            preferences.maxTempBasalAgeMinutes = v
+        }
+        if let v = try? container.decode(Decimal.self, forKey: .cgmStaleMinutes) {
+            preferences.cgmStaleMinutes = v
+        }
+        if let v = try? container.decode(Bool.self, forKey: .allowCancelDuringManualTempBasal) {
+            preferences.allowCancelDuringManualTempBasal = v
+        }
+        if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {
+            preferences.minTempBasalFloorUph = v
         }
 
         self = preferences

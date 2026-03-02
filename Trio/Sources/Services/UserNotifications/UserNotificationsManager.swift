@@ -40,6 +40,11 @@ protocol pumpNotificationObserver {
     func pumpRemoveNotification()
 }
 
+// SAFETY_GUARDS
+protocol SafetyBasalRevertObserver {
+    func safetyBasalRevertDidOccur(message: String)
+}
+
 final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, Injectable {
     enum Identifier: String {
         case glucoseNotification = "Trio.glucoseNotification"
@@ -48,6 +53,8 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         case noLoopSecondNotification = "Trio.noLoopSecondNotification"
         case bolusFailedNotification = "Trio.bolusFailedNotification"
         case pumpNotification = "Trio.pumpNotification"
+        // SAFETY_GUARDS
+        case safetyBasalRevertNotification = "Trio.safetyBasalRevertNotification"
         case alertMessageNotification = "Trio.alertMessageNotification"
     }
 
@@ -90,6 +97,8 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         broadcaster.register(DeterminationObserver.self, observer: self)
         broadcaster.register(BolusFailureObserver.self, observer: self)
         broadcaster.register(pumpNotificationObserver.self, observer: self)
+        // SAFETY_GUARDS
+        broadcaster.register(SafetyBasalRevertObserver.self, observer: self)
         broadcaster.register(alertMessageNotificationObserver.self, observer: self)
 //        requestNotificationPermissionsIfNeeded()
         Task {
@@ -409,6 +418,23 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         }
     }
 
+    // SAFETY_GUARDS
+    private func notifySafetyBasalRevert(_ message: String) {
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Trio Safety Revert", comment: "Safety revert notification title")
+        content.body = message
+        content.sound = .default
+
+        addRequest(
+            identifier: .safetyBasalRevertNotification,
+            content: content,
+            deleteOld: true,
+            trigger: nil,
+            messageType: .error,
+            messageSubtype: .algorithm
+        )
+    }
+
     private func addRequest(
         identifier: Identifier,
         content: UNMutableNotificationContent,
@@ -473,6 +499,13 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         formatter.maximumFractionDigits = 1
         formatter.positivePrefix = "+"
         return formatter
+    }
+}
+
+// SAFETY_GUARD
+extension BaseUserNotificationsManager: SafetyBasalRevertObserver {
+    func safetyBasalRevertDidOccur(message: String) {
+        notifySafetyBasalRevert(message)
     }
 }
 

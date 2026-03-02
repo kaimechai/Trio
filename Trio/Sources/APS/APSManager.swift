@@ -81,6 +81,7 @@ final class BaseAPSManager: APSManager, Injectable {
     @Injected() private var settingsManager: SettingsManager!
     @Injected() private var tddStorage: TDDStorage!
     @Injected() private var broadcaster: Broadcaster!
+    @Injected() private var glucoseStorage: GlucoseStorage!
     @Persisted(key: "lastLoopStartDate") private var lastLoopStartDate: Date = .distantPast
     @Persisted(key: "lastLoopDate") var lastLoopDate: Date = .distantPast {
         didSet {
@@ -96,6 +97,11 @@ final class BaseAPSManager: APSManager, Injectable {
     private var lifetime = Lifetime()
 
     private var backgroundTaskID: UIBackgroundTaskIdentifier?
+    
+    // SAFETY_GUARDS: spam prevention for safety alerts
+    private var lastSafetyBasalRevertAlertDate: Date = .distantPast
+    private var lastSafetyBasalRevertAlertMessage: String = ""
+    let lastGlucoseDate = glucoseStorage.lastGlucoseDate()
 
     var pumpManager: PumpManagerUI? {
         get { deviceDataManager.pumpManager }
@@ -219,7 +225,14 @@ final class BaseAPSManager: APSManager, Injectable {
             .store(in: &lifetime)
     }
 
+    // SAFETY_GUARDS: watchdog scheduler + rules
+    private let safetyGuards = SafetyGuards()
+    
     func heartbeat(date: Date) {
+        // SAFETY_GUARDS
+        safetyGuards.startIfNeeded { [weak self] in
+            await self?.safetyGuardsTick()
+        }
         deviceDataManager.heartbeat(date: date)
     }
 
@@ -619,7 +632,121 @@ final class BaseAPSManager: APSManager, Injectable {
         bolusReporter = nil
         bolusProgress.send(nil)
     }
+    // do I need to change this to TrioSettings? or Preferences?
+    let config = SafetyGuardsConfig(settings: settingsManager.settings)
+    
+    // SAFETY_GUARDS: CGM stale (hard limit 15 minutes) => cancel active temp basal
+    private func enforceStaleCGMSafetyIfNeeded(now: Date) async {
+        let staleSeconds: TimeInterval = 15 * 60   // hard limit (no setting)
 
+        // 1) Determine staleness
+        let last = glucoseStorage.lastGlucoseDate()
+        guard let last else {
+            warning(.apsManager, "SafetyGuards: No glucose date available -> treating CGM as stale. Will cancel temp basal if active.")
+            await cancelTempBasalIfActiveForSafety(now: now, reason: "No recent CGM reading available (treated as stale).")
+            return
+        }
+
+        let age = now.timeIntervalSince(tb.timestamp)
+        guard age >= staleSeconds else { return }  // glucose is fresh enough
+
+        warning(.apsManager, "SafetyGuards: CGM stale (\(Int(age))s >= \(Int(staleSeconds))s). Cancelling temp basal if active to revert to profile.")
+        await cancelTempBasalIfActiveForSafety(
+            now: now,
+            reason: "CGM data stale for 15+ minutes. Temp basal cancelled to return to scheduled basal."
+        )
+    }
+
+    private func cancelTempBasalIfActiveForSafety(now: Date, reason: String) async {
+        do {
+            let tb = try await fetchCurrentTempBasal(date: now)
+            guard tb.duration > 0 else { return } // no temp basal active
+
+            warning(.apsManager, "SafetyGuards: cancelling temp basal (rate=\(tb.rate) U/hr, remaining=\(tb.duration)m). Reason: \(reason)")
+            await enactTempBasal(rate: 0, duration: 0)
+
+            // Notify user (in-app + background) using your notification pipeline (broadcaster observer)
+            notifySafetyBasalRevert(reason: reason, priorRate: tb.rate, priorRemainingMinutes: tb.duration)
+
+        } catch {
+            debug(.apsManager, "SafetyGuards: fetchCurrentTempBasal failed while enforcing stale CGM safety: \(error)")
+        }
+    }
+    
+    // SAFETY_GUARDS: evaluate and enforce safety rules (max temp age, floor-too-long, etc.)
+    private func safetyGuardsTick() async {
+        let now = Date()
+        let config = SafetyGuardsConfig(settings: settingsManager.settings)
+
+        let action = safetyGuards.evaluate(
+            now: now,
+            tempBasalisActive: tempActive,
+            tempBasalStart: tb.timestamp,
+            tempBasalRateUph: rateUph,
+            lastGlucoseDate: lastGlucoseDate,
+            lastLoopDate: lastLoopDate,
+            config: config
+        )
+        
+        do {
+            let tb = try await fetchCurrentTempBasal(date: now)
+            let tempActive = tb.duration > 0
+            let rateUph = (tb.rate as NSDecimalNumber).doubleValue
+            let lastGlucoseDate = glucoseStorage.lastGlucoseDate()
+
+            let action = safetyGuards.evaluate(
+                now: now,
+                tempBasalisActive: tempActive,
+                tempBasalStart: tb.timestamp,
+                tempBasalRateUph: rateUph,
+                lastGlucoseDate: lastGlucoseDate,
+                config: config
+            )
+
+            switch action {
+            case .none:
+                return
+
+            case .cancelTempBasal(let reason):
+                warning(.apsManager, "SAFETY_GUARDS watchdog triggered: \(reason)")
+                await enactTempBasal(rate: 0, duration: 0)
+                broadcastSafetyBasalRevert(message: "Safety revert: \(reason) Please verify delivery.")
+            }
+        } catch {
+            debug(.apsManager, "SAFETY_GUARDS tick error: \(error)")
+        }
+    }
+    
+    // SAFETY_GUARDS: broadcast to UserNotificationsManager (and any other observers)
+    private var lastSafetyBasalRevertAlertDate: Date = .distantPast
+    private var lastSafetyBasalRevertAlertMessage: String = ""
+
+    private func broadcastSafetyBasalRevert(message: String) {
+        let now = Date()
+
+        // SAFETY_GUARDS: SPAM PREVENTION -----
+        let minInterval: TimeInterval = 10 * 60 // 10 minutes
+        let recentlySent = now.timeIntervalSince(lastSafetyBasalRevertAlertDate) < minInterval
+        let sameMessage = (message == lastSafetyBasalRevertAlertMessage)
+
+        if recentlySent && sameMessage {
+            debug(.apsManager, "SAFETY_GUARDS: suppressing duplicate safety alert (throttled).")
+            return
+        }
+
+        // Update throttle state before firing (prevents double-fire)
+        lastSafetyBasalRevertAlertDate = now
+        lastSafetyBasalRevertAlertMessage = message
+        // -------------------------
+
+        let broadcaster = self.broadcaster
+        Task { @MainActor in
+            broadcaster?.notify(SafetyBasalRevertObserver.self, on: .main) {
+                $0.safetyBasalRevertDidOccur(message: message)
+            }
+        }
+    }
+    
     func enactTempBasal(rate: Double, duration: TimeInterval) async {
         if let error = verifyStatus() {
             processError(error)
@@ -628,12 +755,18 @@ final class BaseAPSManager: APSManager, Injectable {
 
         guard let pump = pumpManager else { return }
 
-        // unable to do temp basal during manual temp basal 😁
-        if isManualTempBasal {
+        // SAFETY_GUARD
+        // toggle to allow cancelling during manual temp basal
+        
+        if isManualTempBasal && !(isCancel && config.allowCancelDuringManualTempBasal) {
             processError(APSError.manualBasalTemp(message: "Loop not possible during the manual basal temp"))
             return
         }
-
+        
+        let clampedDuration = isCancel ? 0.0 : min(duration, config.maxTempBasalDurationSeconds)
+        let flooredRate = isCancel ? 0.0 : max(rate, config.minBasalFloorUph)
+        let roundedRate = pump.roundToSupportedBasalRate(unitsPerHour: flooredRate)
+        
         debug(.apsManager, "Enact temp basal \(rate) - \(duration)")
 
         let roundedAmout = pump.roundToSupportedBasalRate(unitsPerHour: rate)
@@ -674,17 +807,22 @@ final class BaseAPSManager: APSManager, Injectable {
 
         guard let state = pumpManager?.status.basalDeliveryState else { return fetchedTempBasal }
 
+        // SAFETY_GUARDS
         switch state {
         case .active:
+            // No temp basal active. Timestamp should just be "now".
             return TempBasal(duration: 0, rate: 0, temp: .absolute, timestamp: date)
+
         case let .tempBasal(dose):
             let rate = Decimal(dose.unitsPerHour)
-            let durationMin = max(0, Int((dose.endDate.timeIntervalSince1970 - date.timeIntervalSince1970) / 60))
-            return TempBasal(duration: durationMin, rate: rate, temp: .absolute, timestamp: date)
+            let remaining = max(0, dose.endDate.timeIntervalSince(date))
+            let durationMin = Int(remaining / 60)
+            // Timestamp MUST be the real start date so "age" is meaningful
+            return TempBasal(duration: durationMin, rate: rate, temp: .absolute, timestamp: dose.startDate)
+
         default:
             return fetchedTempBasal
         }
-    }
 
     private func enactDetermination() async throws {
         guard let determinationID = try await determinationStorage

@@ -166,7 +166,13 @@ enum SettingItems {
                 "Min 5m Carbimpact",
                 "Remaining Carbs Fraction",
                 "Remaining Carbs Cap",
-                "Noisy CGM Target Multiplier"
+                "Noisy CGM Target Multiplier",
+                "Safety Guards",
+                "Max temp basal duration",
+                "Temp basal max age",
+                "CGM stale revert",
+                "Minimum temp basal floor",
+                "Allow cancel during manual temp basal"
             ],
             path: ["Algorithm", "Additionals"]
         )

@@ -23,6 +23,12 @@ extension AlgorithmAdvancedSettings {
         @Published var insulinActionCurve: Decimal = 10
         @Published var smbDeliveryRatio: Decimal = 0.5
         @Published var smbInterval: Decimal = 3
+        // SAFETY_GUARDS
+        @Published var maxTempBasalDurationMinutes: Decimal = 30
+        @Published var maxTempBasalAgeMinutes: Decimal = 30
+        @Published var cgmStaleMinutes: Decimal = 15
+        @Published var allowCancelDuringManualTempBasal: Bool = false
+        @Published var minTempBasalFloorUph: Decimal = 0.05
 
         var pumpSettings: PumpSettings {
             provider.settings()
@@ -47,6 +53,22 @@ extension AlgorithmAdvancedSettings {
             subscribePreferencesSetting(\.smbDeliveryRatio, on: $smbDeliveryRatio) { smbDeliveryRatio = $0 }
             subscribePreferencesSetting(\.smbInterval, on: $smbInterval) { smbInterval = $0 }
 
+            // SAFETY_GUARDS
+            subscribePreferencesSetting(\.maxTempBasalDurationMinutes, on: $maxTempBasalDurationMinutes) {
+                maxTempBasalDurationMinutes = $0
+            }
+            subscribePreferencesSetting(\.maxTempBasalAgeMinutes, on: $maxTempBasalAgeMinutes) {
+                maxTempBasalAgeMinutes = $0
+            }
+            subscribePreferencesSetting(\.cgmStaleMinutes, on: $cgmStaleMinutes) {
+                cgmStaleMinutes = $0
+            }
+            subscribePreferencesSetting(\.allowCancelDuringManualTempBasal, on: $allowCancelDuringManualTempBasal) {
+                allowCancelDuringManualTempBasal = $0
+            }
+            subscribePreferencesSetting(\.minTempBasalFloorUph, on: $minTempBasalFloorUph) {
+                minTempBasalFloorUph = $0
+            }
             insulinActionCurve = pumpSettings.insulinActionCurve
         }
 

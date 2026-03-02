@@ -144,6 +144,11 @@ struct DecimalPickerSettings {
         max: 30,
         type: PickerSetting.PickerSettingType.insulinUnitPerHour
     )
+    // SAFETY_GUARDS
+    var maxTempBasalDurationMinutes = PickerSetting(value: 30, step: 30, min: 30, max: 720, type: .minute)
+    var maxTempBasalAgeMinutes = PickerSetting(value: 30, step: 30, min: 30, max: 720, type: .minute)
+    var cgmStaleMinutes = PickerSetting(value: 15, step: 15, min: 15, max: 60, type: .minute)
+    var minTempBasalFloorUph = PickerSetting(value: 0.05, step: 0.05, min: 0.05, max: 5.00, type: .insulinUnitPerHour)
 }
 
 struct PickerSetting {
