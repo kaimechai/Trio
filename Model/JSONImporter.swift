@@ -26,14 +26,12 @@ enum JSONImporterError: Error {
 
 // MARK: - JSONImporter Class
 
-/// Responsible for importing JSON data into Core Data.
-///
-/// The importer handles two important states:
+// Responsible for importing JSON data into Core Data.
+// The importer handles two important states:
 /// - JSON files stored in the file system that contain data to import
 /// - Existing entries in CoreData that should not be duplicated
-///
-/// Imports are performed when a JSON file exists. The importer checks
-/// CoreData for existing entries to avoid duplicating records from partial imports.
+// Imports are performed when a JSON file exists. The importer checks CoreData for existing entries to avoid duplicating records from partial imports.
+
 class JSONImporter {
     private let context: NSManagedObjectContext
     private let coreDataStack: CoreDataStack
@@ -44,10 +42,9 @@ class JSONImporter {
         self.coreDataStack = coreDataStack
     }
 
-    /// Reads and parses a JSON file from the file system.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the JSON file to read.
+    // Reads and parses a JSON file from the file system.
+    // Parameters:
+    /// - URL: The URL of the JSON file to read.
     /// - Returns: A decoded object of the specified type.
     /// - Throws: An error if the file cannot be read or decoded.
     private func readJsonFile<T: Decodable>(url: URL) throws -> T {
@@ -57,17 +54,14 @@ class JSONImporter {
     }
 
     /// Fetches a set of unique `Date` values for a specific `NSManagedObject` type from Core Data.
-    ///
     /// This helper function is used to retrieve all existing date-like values (e.g., `date`, `timestamp`, `deliverAt`)
-    /// from a given entity type within a specified time range. It wraps the fetch and transformation
-    /// in a `context.perform` block to ensure thread safety when used on private background contexts.
-    ///
-    /// - Parameters:
+    /// from a given entity type within a specified time range. It wraps the fetch and transformation in a `context.perform` block to ensure thread safety when used on private background contexts.
+
+    // Parameters:
     ///   - type: The `NSManagedObject` subclass to fetch (e.g., `GlucoseStored.self`, `PumpEventStored.self`)
     ///   - predicate: A preconstructed predicate that filters the entity by date/timestamp range.
     ///   - sortKey: The string name of the date-like field used to sort the fetch results. **This must match the key used in Core Data.**
     ///   - dateKeyPath: A key path pointing to the `Date?` property on the entity used to extract the actual date value from each record.
-    ///
     /// - Returns: A `Set<Date>` containing all non-nil date values from the fetched entities.
     /// - Throws: `CoreDataError.fetchError` if casting the fetched objects fails, or if the fetch itself fails.
 
@@ -94,18 +88,16 @@ class JSONImporter {
         }
     }
 
-    /// Imports glucose history from a JSON file into CoreData.
-    ///
-    /// The function reads glucose data from the provided JSON file and stores new entries
-    /// in CoreData, skipping entries with dates that already exist in the database.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the JSON file containing glucose history.
-    ///   - now: The current time, used to skip old entries
-    /// - Throws:
-    ///   - JSONImporterError.missingGlucoseValueInGlucoseEntry if a glucose entry is missing a value.
-    ///   - An error if the file cannot be read or decoded.
-    ///   - An error if the CoreData operation fails.
+    // Imports glucose history from a JSON file into CoreData.
+    /// The function reads glucose data from the provided JSON file and stores new entries in CoreData, skipping entries with dates already in the database.
+
+    // Parameters:
+    ///  - URL: The URL of the JSON file containing glucose history.
+    ///  - now: The current time, used to skip old entries
+    ///  - Throws:
+    ///  - JSONImporterError.missingGlucoseValueInGlucoseEntry if a glucose entry is missing a value.
+    ///  - An error if the file cannot be read or decoded.
+    ///  - An error if the CoreData operation fails.
     func importGlucoseHistory(url: URL, now: Date) async throws {
         let twentyFourHoursAgo = now - 24.hours.timeInterval
         let glucoseHistoryFull: [BloodGlucose] = try readJsonFile(url: url)
@@ -190,15 +182,13 @@ class JSONImporter {
         }
     }
 
-    /// Imports pump history from a JSON file into CoreData.
+    // Imports pump history from a JSON file into CoreData.
+    /// The function reads pump history data from the provided JSON file and stores new entries in CoreData, skipping entries with timestamps that already exist in the database.
     ///
-    /// The function reads pump history data from the provided JSON file and stores new entries
-    /// in CoreData, skipping entries with timestamps that already exist in the database.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the JSON file containing pump history.
+    // Parameters:
+    ///   - URL: The URL of the JSON file containing pump history.
     ///   - now: The current time, used to skip old entries
-    /// - Throws:
+    ///   - Throws:
     ///   - JSONImporterError.tempBasalAndDurationMismatch if we can't match tempBasals with their duration.
     ///   - An error if the file cannot be read or decoded.
     ///   - An error if the CoreData operation fails.
@@ -234,16 +224,14 @@ class JSONImporter {
         }
     }
 
-    /// Imports carb history from a JSON file into CoreData.
-    ///
-    /// The function reads carb entries data from the provided JSON file and stores new entries
-    /// in CoreData, skipping entries with dates that already exist in the database.
+    // Imports carb history from a JSON file into CoreData.
+    /// The function reads carb entries data from the provided JSON file and stores new entries in CoreData, skipping entries with dates that already exist in the database.
     /// We ignore all FPU entries (aka carb equivalents) when performing an import.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the JSON file containing glucose history.
+
+    // Parameters:
+    ///   - URL: The URL of the JSON file containing glucose history.
     ///   - now: The current datetime
-    /// - Throws:
+    ///   - Throws:
     ///   - JSONImporterError.missingCarbsValueInCarbEntry if a carb entry is missing a `carbs: Decimal` value.
     ///   - An error if the file cannot be read or decoded.
     ///   - An error if the CoreData operation fails.
@@ -282,14 +270,13 @@ class JSONImporter {
         }
     }
 
-    /// Imports oref determination from a JSON file into CoreData.
+    // Imports oref determination from a JSON file into CoreData.
+
+    /// The function reads oref determination data from the provided JSON file and stores new entries in CoreData, skipping entries with dates that already exist in the database.
     ///
-    /// The function reads oref determination data from the provided JSON file and stores new entries
-    /// in CoreData, skipping entries with dates that already exist in the database.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the JSON file containing determination data.
-    /// - Throws:
+    // Parameters:
+    ///   - URL: The URL of the JSON file containing determination data.
+    ///   - Throws:
     ///   - JSONImporterError.missingGlucoseValueInGlucoseEntry if a glucose entry is missing a value.
     ///   - An error if the file cannot be read or decoded.
     ///   - An error if the CoreData operation fails.
@@ -304,7 +291,7 @@ class JSONImporter {
             dateKeyPath: \.deliverAt
         )
 
-        /// Helper function to check if entries are from within the last 24 hours that do not yet exist in Core Data
+        /// Helper function to check if entries are from within the last 24 hours that do not yet exist in Core Data.
         func checkDeterminationDate(_ date: Date) -> Bool {
             date >= twentyFourHoursAgo && date <= now && !existingDates.contains(date)
         }
@@ -328,8 +315,7 @@ class JSONImporter {
 
         try await backgroundContext.perform {
             /// We know both determination entries are from within last 24 hrs via `checkDeterminationDate()` in the earlier `guard` clause
-            /// If their `deliverAt` does not match, and if `suggestedDeliverAt` is newer, it is worth storing them both, as that represents
-            /// a more recent algorithm run that did not cause a dosing enactment, e.g., a carb entry or a manual bolus.
+            /// If their `deliverAt` does not match, and if `suggestedDeliverAt` is newer, it is worth storing them both, as that represents a more recent algorithm run that did not cause a dosing enactment, e.g., a carb entry or a manual bolus.
             if suggestedDeliverAt > enactedDeliverAt {
                 try suggestedDetermination.store(in: backgroundContext)
             }
@@ -400,14 +386,11 @@ extension PumpHistoryEvent {
 }
 
 /// Extension to support decoding `CarbsEntry` from JSON with multiple possible key formats for entry notes.
-///
 /// This is needed because some JSON sources (e.g., Trio v0.2.5) use the singular key `"note"`
 /// for the `note` field, while others (e.g., Nightscout or oref) use the plural `"notes"`.
-///
-/// To ensure compatibility across all sources without duplicating models or requiring upstream fixes,
-/// this custom implementation attempts to decode the `note` field first from `"note"`, then from `"notes"`.
-/// Encoding will always use the canonical `"notes"` key to preserve consistency in output,
-/// as this is what's established throughout the backend now.
+/// To ensure compatibility across all sources without duplicating models or requiring upstream fixes, this custom implementation attempts to decode the `note` field first from `"note"`, then from `"notes"`.
+/// Encoding will always use the canonical `"notes"` key to preserve consistency in output, as this is what's established throughout the backend now.
+
 extension CarbsEntry: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -486,16 +469,11 @@ extension CarbsEntry: Codable {
 }
 
 /// Extension to support decoding `Determination` entries with misspelled keys from external JSON sources.
-///
-/// Some legacy or third-party tools occasionally serialize the `received` property as `"recieved"`
-/// (misspelled) instead of the correct `"received"`. To prevent decoding failures or data loss,
-/// this custom decoder attempts to decode from `"received"` first, then falls back to `"recieved"`
-/// if necessary.
-///
+/// Some legacy or third-party tools occasionally serialize the `received` property as `"recieved"`(misspelled) instead of the correct `"received"`. To prevent decoding failures or data loss, this custom decoder attempts to decode from `"received"` first, then falls back to `"recieved"`if necessary.
+
 /// Encoding always uses the correct `"received"` key to ensure consistent, standards-compliant output.
-///
-/// This improves resilience and ensures compatibility with imported loop history, simulations,
-/// or devicestatus artifacts that may contain typos in their keys.
+/// This improves resilience and ensures compatibility with imported loop history, simulations, or devicestatus artifacts that may contain typos in their keys.
+
 extension Determination: Codable {
     private enum CodingKeys: String, CodingKey {
         case id

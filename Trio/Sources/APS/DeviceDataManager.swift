@@ -6,7 +6,7 @@ import Foundation
 import LoopKit
 import LoopKitUI
 import MinimedKit
-import MockKit
+@preconcurrency import MockKit
 import OmniBLE
 import OmniKit
 import ShareClient

@@ -612,38 +612,38 @@ extension SettingsExport {
                     unit: "%"
                 )
 
-                // SAFETY_GUARD
+                // SAFETY_GUARDS
                 let safetySubcategory = String(localized: "Safety")
                 addSetting(
                     category: algorithmCategory,
                     subcategory: safetySubcategory,
-                    name: String(localized: "Max temp basal duration"),
-                    value: "\(trioSettings.maxTempBasalDurationMinutes) min"
-                )
-                addSetting(
-                    category: algorithmCategory,
-                    subcategory: safetySubcategory,
-                    name: String(localized: "Cancel temp basal if older than"),
-                    value: "\(trioSettings.maxTempBasalAgeMinutes) min"
-                )
-                addSetting(
-                    category: algorithmCategory,
-                    subcategory: safetySubcategory,
-                    name: String(localized: "Revert if CGM stale"),
-                    value: "\(trioSettings.cgmStaleMinutes) min"
-                )
-                addSetting(
-                    category: algorithmCategory,
-                    subcategory: safetySubcategory,
-                    name: String(localized: "Allow overriding or cancelling a manual temp basal"),
-                    value: trioSettings
+                    name: String(localized: "Enable Override or Cancel of Manual Temp Basal"),
+                    value: preferences
                         .allowOverrideManualTempBasal ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
                 addSetting(
                     category: algorithmCategory,
                     subcategory: safetySubcategory,
-                    name: String(localized: "Minimum temp basal floor"),
-                    value: "\(NSDecimalNumber(decimal: trioSettings.minTempBasalFloorUph)) U/hr"
+                    name: String(localized: "CGM Stale Threshold"),
+                    value: "\(preferences.cgmStaleMinutes) min"
+                )
+                addSetting(
+                    category: algorithmCategory,
+                    subcategory: safetySubcategory,
+                    name: String(localized: "Minimum Temp Basal Floor"),
+                    value: "\(NSDecimalNumber(decimal: preferences.minTempBasalFloorUph)) U/hr"
+                )
+                addSetting(
+                    category: algorithmCategory,
+                    subcategory: safetySubcategory,
+                    name: String(localized: "Max Temp Basal Duration"),
+                    value: "\(preferences.maxTempBasalDurationMinutes) min"
+                )
+                addSetting(
+                    category: algorithmCategory,
+                    subcategory: safetySubcategory,
+                    name: String(localized: "Max Temp Basal Age"),
+                    value: "\(preferences.maxTempBasalAgeMinutes) min"
                 )
             }
 

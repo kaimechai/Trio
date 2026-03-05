@@ -94,158 +94,6 @@ extension AlgorithmAdvancedSettings {
                     }
                 )
 
-                // SAFETY_GUARDS — Max Temp Basal Duration
-                SettingInputSection(
-                    decimalValue: $state.maxTempBasalDurationMinutes,
-                    booleanValue: $booleanPlaceholder,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Max Temp Basal Duration", comment: "Max Temp Basal Duration")
-                        }
-                    ),
-                    units: state.units,
-                    type: .decimal("maxTempBasalDurationMinutes"),
-                    label: String(localized: "Max Temp Basal Duration", comment: "Max Temp Basal Duration"),
-                    miniHint: String(localized: "Caps any temp basal duration Trio enacts (minutes).", comment: "Mini hint"),
-                    verboseHint:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: 30 min").bold()
-                        Text("This caps any temp basal duration Trio sends to the pump.")
-                        Text(
-                            "If the algorithm wants a longer adjustment, it can re-enact a new temp basal on the next loop cycle."
-                        )
-                        Text("Note: Omnipod DASH supports temp basal durations from 30 minutes to 12 hours.").font(.footnote)
-                            .foregroundColor(.secondary)
-                    }
-                )
-                // SAFETY_GUARDS — Max Temp Basal Age (Watchdog)
-                SettingInputSection(
-                    decimalValue: $state.maxTempBasalAgeMinutes,
-                    booleanValue: $booleanPlaceholder,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Max Temp Basal Age", comment: "Max Temp Basal Age")
-                        }
-                    ),
-                    units: state.units,
-                    type: .decimal("maxTempBasalAgeMinutes"),
-                    label: String(localized: "Max Temp Basal Age", comment: "Max Temp Basal Age"),
-                    miniHint: String(
-                        localized: "Cancels an active temp basal if it persists longer than this (minutes).",
-                        comment: "Mini hint"
-                    ),
-                    verboseHint:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: 30 min").bold()
-                        Text("This watchdog cancels a temp basal that has remained active past this age threshold.")
-                        Text(
-                            "It is intended to prevent long-running 0-basal (or other) temps from persisting due to stale state or failed updates."
-                        )
-                        Text("When triggered, Trio will cancel the temp basal and attempt to return to scheduled basal.").bold()
-                    }
-                )
-                // SAFETY_GUARDS — CGM Stale Threshold
-                SettingInputSection(
-                    decimalValue: $state.cgmStaleMinutes,
-                    booleanValue: $booleanPlaceholder,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "CGM Stale Threshold", comment: "CGM Stale Threshold")
-                        }
-                    ),
-                    units: state.units,
-                    type: .decimal("cgmStaleMinutes"),
-                    label: String(localized: "CGM Stale Threshold", comment: "CGM Stale Threshold"),
-                    miniHint: String(
-                        localized: "Triggers safety revert when glucose data is stale (minutes).",
-                        comment: "Mini hint"
-                    ),
-                    verboseHint:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: 15 min").bold()
-                        Text(
-                            "If Trio determines CGM data is stale past this threshold, it can force a revert/cancel safety action."
-                        )
-                        Text("This is intended to avoid continuing a potentially unsafe temp basal without fresh glucose data.")
-                    }
-                )
-                // SAFETY_GUARDS — Allow Cancel During Manual Temp Basal
-                SettingInputSection(
-                    decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.allowOverrideManualTempBasal,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(
-                                localized: "Allow Cancel During Manual Temp Basal",
-                                comment: "Allow Cancel During Manual Temp Basal"
-                            )
-                        }
-                    ),
-                    units: state.units,
-                    type: .boolean,
-                    label: String(
-                        localized: "Allow Cancel During Manual Temp Basal",
-                        comment: "Allow Cancel During Manual Temp Basal"
-                    ),
-                    miniHint: String(
-                        localized: "Allows cancelling a temp basal even when a manual temp basal is active.",
-                        comment: "Mini hint"
-                    ),
-                    verboseHint:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: OFF").bold()
-                        Text("When OFF, Trio blocks temp basal actions during manual temp basal mode.")
-                        Text("When ON, Trio can still send a cancel (0 duration / 0 rate) even if a manual temp basal is active.")
-                        Text(
-                            "Use caution: Ensure your cancel path only cancels temp basal delivery and does not change suspension state."
-                        )
-                        .bold()
-                    }
-                )
-                // SAFETY_GUARDS — Minimum Temp Basal Floor
-                SettingInputSection(
-                    decimalValue: $state.minTempBasalFloorUph,
-                    booleanValue: $booleanPlaceholder,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Minimum Temp Basal Floor", comment: "Minimum Temp Basal Floor")
-                        }
-                    ),
-                    units: state.units,
-                    type: .decimal("minTempBasalFloorUph"),
-                    label: String(localized: "Minimum Temp Basal Floor", comment: "Minimum Temp Basal Floor"),
-                    miniHint: String(
-                        localized: "Enforces a minimum temp basal rate before rounding (U/hr).",
-                        comment: "Mini hint"
-                    ),
-                    verboseHint:
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: 0.05 U/hr").bold()
-                        Text(
-                            "When a non-cancel temp basal is enacted, Trio will apply this minimum floor before rounding to pump-supported increments."
-                        )
-                        Text(
-                            "This is intended to prevent long-running 0-basal temps when the system should be delivering some basal."
-                        )
-                        Text("Note: Omnipod DASH basal increments are 0.05 U/hr.").font(.footnote).foregroundColor(.secondary)
-                    }
-                )
-
                 SettingInputSection(
                     decimalValue: $state.insulinActionCurve,
                     booleanValue: $booleanPlaceholder,
@@ -540,6 +388,166 @@ extension AlgorithmAdvancedSettings {
                             "This helps reduce the risk of incorrect insulin dosing based on inaccurate sensor data, ensuring safer insulin adjustments during periods of poor CGM accuracy."
                         )
                         Text("Note: A CGM is considered noisy when it provides inconsistent readings.")
+                    }
+                )
+                
+            // SAFETY_GUARDS: Enable Override or Cancel Manual Temp Basal
+                SettingInputSection(
+                    decimalValue: $decimalPlaceholder,
+                    booleanValue: $state.allowOverrideManualTempBasal,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(
+                                localized: "Enable Override or Cancel of Manual Temp Basal",
+                                comment: "Enable Override or Cancel of Manual Temp Basal"
+                            )
+                        }
+                    ),
+                    units: state.units,
+                    type: .boolean,
+                    label: String(
+                        localized: "Enable Override or Cancel of Manual Temp Basal",
+                        comment: "Enable Override or Cancel of Manual Temp Basal"
+                    ),
+                    miniHint: String(
+                        localized: "Safety feature which allows overriding active manual temp basal so it can be cancelled.",
+                        comment: "Mini hint"
+                    ),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: OFF").bold()
+                        Text("When OFF, Trio blocks temp basal actions during manual temp basal mode.")
+                        Text("When ON, Trio can still send a cancel (0 duration / 0 rate) even if a manual temp basal is active.")
+                        Text(
+                            "Use caution: Ensure your cancel path only cancels temp basal delivery and does not impact suspension state. If suspension is intended, ensure suspension is enacted."
+                        )
+                        .bold()
+                    }
+                )
+                
+                // SAFETY_GUARDS: CGM Stale Threshold
+                SettingInputSection(
+                    decimalValue: $state.cgmStaleMinutes,
+                    booleanValue: $booleanPlaceholder,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(
+                                localized: "CGM Stale Threshold",
+                                comment: "CGM Stale Threshold")
+                        }
+                    ),
+                    units: state.units,
+                    type: .decimal("cgmStaleMinutes"),
+                    label: String(localized: "CGM Stale Threshold", comment: "CGM Stale Threshold"),
+                    miniHint: String(
+                        localized: "Triggers safety revert when glucose data is stale (minutes).",
+                        comment: "Mini hint"
+                    ),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: 15 min").bold()
+                        Text(
+                            "If Trio determines CGM data is stale past this threshold, it can force a cancel safety action and revert to scheduled basal rates."
+                        )
+                        Text("This is intended to avoid continuing a potentially unsafe temp basal without fresh glucose data.")
+                    }
+                )
+                
+                // SAFETY_GUARDS: Minimum Temp Basal Floor
+                SettingInputSection(
+                    decimalValue: $state.minTempBasalFloorUph,
+                    booleanValue: $booleanPlaceholder,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(
+                                localized: "Minimum Temp Basal Floor",
+                                comment: "Minimum Temp Basal Floor")
+                        }
+                    ),
+                    units: state.units,
+                    type: .decimal("minTempBasalFloorUph"),
+                    label: String(localized: "Minimum Temp Basal Floor", comment: "Minimum Temp Basal Floor"),
+                    miniHint: String(
+                        localized: "Enforces a minimum temp basal rate before rounding (U/hr).",
+                        comment: "Mini hint"
+                    ),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: 0.05 U/hr").bold()
+                        Text(
+                            "When a non-cancel temp basal is enacted, Trio will apply this minimum floor before rounding to pump-supported increments."
+                        )
+                        Text(
+                            "This is intended to prevent long-running 0-basal temps when the system should be delivering some basal."
+                        )
+                        Text("Note: Omnipod DASH basal increments are 0.05 U/hr.").font(.footnote).foregroundColor(.secondary)
+                    }
+                )
+                
+                // SAFETY_GUARDS: Max Temp Basal Duration
+                SettingInputSection(
+                    decimalValue: $state.maxTempBasalDurationMinutes,
+                    booleanValue: $booleanPlaceholder,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Max Temp Basal Duration", comment: "Max Temp Basal Duration")
+                        }
+                    ),
+                    units: state.units,
+                    type: .decimal("maxTempBasalDurationMinutes"),
+                    label: String(localized: "Max Temp Basal Duration", comment: "Max Temp Basal Duration"),
+                    miniHint: String(localized: "Caps any temp basal duration Trio enacts (in minutes).", comment: "Mini hint"),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: 30 min").bold()
+                        Text("This caps the duration of any temp basal Trio sends to the pump.")
+                        Text(
+                            "If the algorithm wants a longer adjustment, it can re-enact a new temp basal on the next loop cycle."
+                        )
+                        Text("Note: Omnipod DASH supports temp basal durations from 30 minutes to 12 hours.").font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                )
+                
+                // SAFETY_GUARDS: Max Temp Basal Age
+                SettingInputSection(
+                    decimalValue: $state.maxTempBasalAgeMinutes,
+                    booleanValue: $booleanPlaceholder,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Max Temp Basal Age", comment: "Max Temp Basal Age")
+                        }
+                    ),
+                    units: state.units,
+                    type: .decimal("maxTempBasalAgeMinutes"),
+                    label: String(localized: "Max Temp Basal Age", comment: "Max Temp Basal Age"),
+                    miniHint: String(
+                        localized: "Cancels an active temp basal if it persists beyond the maximum allowed age (in minutes).",
+                        comment: "Mini hint"
+                    ),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: 30 min").bold()
+                        Text("This watchdog cancels a temp basal that has remained active past this age threshold.")
+                        Text(
+                            "It is intended to prevent long-running zero (or other) temp basals from persisting due to stale state or failed updates. Prolonged lack of basal insulin leads to risk of diabetic ketoacidosis (DKA), a potentially life-threatening complication of diabetes."
+                        )
+                        Text("When triggered, Trio will cancel the temp basal and revert to scheduled basal.").bold()
                     }
                 )
             }

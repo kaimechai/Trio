@@ -1,5 +1,5 @@
 import Combine
-import CoreData
+@preconcurrency import CoreData
 import Foundation
 import SwiftDate
 import Swinject
