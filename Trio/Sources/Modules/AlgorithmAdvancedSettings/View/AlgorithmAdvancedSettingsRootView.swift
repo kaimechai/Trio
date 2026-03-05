@@ -181,7 +181,7 @@ extension AlgorithmAdvancedSettings {
                 // SAFETY_GUARDS — Allow Cancel During Manual Temp Basal
                 SettingInputSection(
                     decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.allowCancelDuringManualTempBasal,
+                    booleanValue: $state.allowOverrideManualTempBasal,
                     shouldDisplayHint: $shouldDisplayHint,
                     selectedVerboseHint: Binding(
                         get: { selectedVerboseHint },

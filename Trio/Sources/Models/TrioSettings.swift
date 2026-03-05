@@ -75,7 +75,7 @@ struct TrioSettings: JSON, Equatable {
     var maxTempBasalDurationMinutes: Int = 30 // clamp enacted temps
     var maxTempBasalAgeMinutes: Int = 30 // watchdog cancel threshold
     var cgmStaleMinutes: Int = 15 // watchdog threshold
-    var allowCancelDuringManualTempBasal: Bool = false // allow cancel only
+    var allowOverrideManualTempBasal: Bool = false // allow cancel only
     var minTempBasalFloorUph: Decimal = 0.05 // floor before rounding
     // SAFETY_GUARDS
 }
@@ -326,8 +326,8 @@ extension TrioSettings: Decodable {
             settings.cgmStaleMinutes = v
         }
 
-        if let v = try? container.decode(Bool.self, forKey: .allowCancelDuringManualTempBasal) {
-            settings.allowCancelDuringManualTempBasal = v
+        if let v = try? container.decode(Bool.self, forKey: .allowOverrideManualTempBasal) {
+            settings.allowOverrideManualTempBasal = v
         }
 
         if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {

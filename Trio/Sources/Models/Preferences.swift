@@ -57,7 +57,7 @@ struct Preferences: JSON, Equatable {
     var maxTempBasalDurationMinutes: Decimal = 30 // DASH legal: 30..720 (cancel is 0 but UI can avoid 0)
     var maxTempBasalAgeMinutes: Decimal = 30 // watchdog cancel if active too long
     var cgmStaleMinutes: Decimal = 15 // stale CGM revert
-    var allowCancelDuringManualTempBasal: Bool = false
+    var allowOverrideManualTempBasal: Bool = false
     var minTempBasalFloorUph: Decimal = 0.05 // DASH increment
 }
 
@@ -118,7 +118,7 @@ extension Preferences {
         case maxTempBasalDurationMinutes
         case maxTempBasalAgeMinutes
         case cgmStaleMinutes
-        case allowCancelDuringManualTempBasal
+        case allowOverrideManualTempBasal
         case minTempBasalFloorUph
     }
 }
@@ -350,8 +350,8 @@ extension Preferences: Decodable {
         if let v = try? container.decode(Decimal.self, forKey: .cgmStaleMinutes) {
             preferences.cgmStaleMinutes = v
         }
-        if let v = try? container.decode(Bool.self, forKey: .allowCancelDuringManualTempBasal) {
-            preferences.allowCancelDuringManualTempBasal = v
+        if let v = try? container.decode(Bool.self, forKey: .allowOverrideManualTempBasal) {
+            preferences.allowOverrideManualTempBasal = v
         }
         if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {
             preferences.minTempBasalFloorUph = v

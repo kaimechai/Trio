@@ -36308,6 +36308,9 @@
         }
       }
     },
+    "Allow Cancel During Manual Temp Basal" : {
+      "comment" : "Allow Cancel During Manual Temp Basal"
+    },
     "Allow Fetching from Nightscout" : {
       "localizations" : {
         "bg" : {
@@ -36546,6 +36549,9 @@
           }
         }
       }
+    },
+    "Allow overriding or cancelling a manual temp basal" : {
+
     },
     "Allow SMB for 6 hrs after a carb entry." : {
       "localizations" : {
@@ -38707,6 +38713,9 @@
           }
         }
       }
+    },
+    "Allows cancelling a temp basal even when a manual temp basal is active." : {
+      "comment" : "Mini hint"
     },
     "Allows fat and protein to be converted into future carb equivalents using the Warsaw formula of kilocalories divided by 10.\n\nThis spreads the carb equivilants over a maximum duration setting that can be configured from 5-12 hours.\n\nDelay is time from now until the first future carb entry.\n\nInterval in minutes is how many minutes are between entries. The shorter the interval, the smoother the result. 10, 15, 20, 30, or 60 are reasonable choices.\n\nAdjustment factor is how much effect the fat and protein has on the entries. 1.0 is full effect (original Warsaw Method) and 0.5 is half effect. Note that you may find that your normal carb ratio needs to increase to a larger number if you begin adding fat and protein entries. For this reason, it is best to start with a factor of about 0.5 to ease into it.\n\nDefault settings: Time Cap: 8 h, Interval: 30 min, Factor: 0.5, Delay 60 min" : {
       "comment" : "Description",
@@ -60291,6 +60300,9 @@
         }
       }
     },
+    "Cancel temp basal if older than" : {
+
+    },
     "Cancel Temp Target" : {
       "comment" : "Alert",
       "extractionState" : "manual",
@@ -60535,6 +60547,9 @@
         }
       }
     },
+    "Cancels an active temp basal if it persists longer than this (minutes)." : {
+      "comment" : "Mini hint"
+    },
     "Cannot Enable This Setting" : {
       "localizations" : {
         "bg" : {
@@ -60652,6 +60667,9 @@
           }
         }
       }
+    },
+    "Caps any temp basal duration Trio enacts (minutes)." : {
+      "comment" : "Mini hint"
     },
     "Carb entries will be fully decayed by the number of hours specified as Max Meal Absorption Time. Meals that are high in fat and/or protein can have long lasting effects on BG levels. To allow such late meal effects to be considered by the carb decay model, a longer Max Meal Absorption Time than the default 6 hours can be set." : {
       "localizations" : {
@@ -64114,6 +64132,9 @@
           }
         }
       }
+    },
+    "CGM Stale Threshold" : {
+      "comment" : "CGM Stale Threshold"
     },
     "Change CR" : {
       "extractionState" : "manual",
@@ -79074,6 +79095,9 @@
         }
       }
     },
+    "Default: 0.05 U/hr" : {
+
+    },
     "Default: 2 %@" : {
       "localizations" : {
         "bg" : {
@@ -79782,6 +79806,9 @@
         }
       }
     },
+    "Default: 15 min" : {
+
+    },
     "Default: 20% increase" : {
       "localizations" : {
         "bg" : {
@@ -79899,6 +79926,9 @@
           }
         }
       }
+    },
+    "Default: 30 min" : {
+
     },
     "Default: 30 minutes" : {
       "localizations" : {
@@ -104238,6 +104268,9 @@
           }
         }
       }
+    },
+    "Enforces a minimum temp basal rate before rounding (U/hr)." : {
+      "comment" : "Mini hint"
     },
     "Enter Meal Preset Name" : {
       "extractionState" : "manual",
@@ -129297,6 +129330,9 @@
         }
       }
     },
+    "If the algorithm wants a longer adjustment, it can re-enact a new temp basal on the next loop cycle." : {
+
+    },
     "If toggled, Insulin will be added to IOB but it will not be delivered" : {
       "localizations" : {
         "bg" : {
@@ -129768,6 +129804,9 @@
           }
         }
       }
+    },
+    "If Trio determines CGM data is stale past this threshold, it can force a revert/cancel safety action." : {
+
     },
     "If using Dynamic ISF (with Sigmoid), overriding your ISF will adjust the ISF used at your glucose target which extends to the ISF used at other glucose. Overriding your glucose target will change glucose level your ISF will be set to your profile ISF. Both of these can be combined in a single Override." : {
       "localizations" : {
@@ -138566,6 +138605,9 @@
           }
         }
       }
+    },
+    "It is intended to prevent long-running 0-basal (or other) temps from persisting due to stale state or failed updates." : {
+
     },
     "It is not recommended to set Autosens Max above 150% to maintain safe insulin dosing." : {
       "localizations" : {
@@ -155105,6 +155147,15 @@
         }
       }
     },
+    "Max Temp Basal Age" : {
+      "comment" : "Max Temp Basal Age"
+    },
+    "Max temp basal duration" : {
+
+    },
+    "Max Temp Basal Duration" : {
+      "comment" : "Max Temp Basal Duration"
+    },
     "Max UAM Basal Minutes" : {
       "comment" : "Max UAM Basal Minutes",
       "localizations" : {
@@ -160973,6 +161024,12 @@
           }
         }
       }
+    },
+    "Minimum temp basal floor" : {
+
+    },
+    "Minimum Temp Basal Floor" : {
+      "comment" : "Minimum Temp Basal Floor"
     },
     "Minimum Threshold Setting is, by default, determined by your set Glucose Target. This threshold automatically suspends insulin delivery if your glucose levels are forecasted to fall below this value. It’s designed to protect against hypoglycemia, particularly during sleep or other vulnerable times." : {
       "localizations" : {
@@ -171082,6 +171139,12 @@
           }
         }
       }
+    },
+    "Note: Omnipod DASH basal increments are 0.05 U/hr." : {
+
+    },
+    "Note: Omnipod DASH supports temp basal durations from 30 minutes to 12 hours." : {
+
     },
     "Note: Once a new calendar event is created, the previous event will be deleted." : {
       "localizations" : {
@@ -196389,6 +196452,9 @@
           }
         }
       }
+    },
+    "Revert if CGM stale" : {
+
     },
     "Rewind Resets Autosens" : {
       "comment" : "Rewind Resets Autosens",
@@ -233305,6 +233371,9 @@
         }
       }
     },
+    "This caps any temp basal duration Trio sends to the pump." : {
+
+    },
     "This could be useful for fast absorbing meals like sugary cereal." : {
       "localizations" : {
         "bg" : {
@@ -236447,6 +236516,12 @@
           }
         }
       }
+    },
+    "This is intended to avoid continuing a potentially unsafe temp basal without fresh glucose data." : {
+
+    },
+    "This is intended to prevent long-running 0-basal temps when the system should be delivering some basal." : {
+
     },
     "This is the amount of the maximum number of carbs we’ll assume will absorb over 4h if we don’t yet see carb absorption." : {
       "comment" : "\"Remaining Carbs Cap\"",
@@ -239671,6 +239746,9 @@
           }
         }
       }
+    },
+    "This watchdog cancels a temp basal that has remained active past this age threshold." : {
+
     },
     "This will add your current glucose on the top right of your Trio icon as a red notification badge. Changing setting takes effect on next Glucose reading." : {
       "localizations" : {
@@ -246602,6 +246680,9 @@
         }
       }
     },
+    "Triggers safety revert when glucose data is stale (minutes)." : {
+      "comment" : "Mini hint"
+    },
     "Trio" : {
       "localizations" : {
         "bg" : {
@@ -250381,6 +250462,9 @@
           }
         }
       }
+    },
+    "Trio Safety Revert" : {
+      "comment" : "Safety revert notification title"
     },
     "Trio State Result" : {
       "localizations" : {
@@ -257207,6 +257291,9 @@
         }
       }
     },
+    "Use caution: Ensure your cancel path only cancels temp basal delivery and does not change suspension state." : {
+
+    },
     "Use Custom Peak Time" : {
       "comment" : "Use Custom Peak Time",
       "localizations" : {
@@ -263677,6 +263764,9 @@
         }
       }
     },
+    "When a non-cancel temp basal is enacted, Trio will apply this minimum floor before rounding to pump-supported increments." : {
+
+    },
     "When connected, uploading of carbs, bolus, basal and glucose from Trio to your Tidepool account is enabled.\n\nUse your Tidepool credentials to login. If you dont already have a Tidepool account, you can sign up for one on the login page." : {
       "localizations" : {
         "bg" : {
@@ -264502,6 +264592,12 @@
           }
         }
       }
+    },
+    "When OFF, Trio blocks temp basal actions during manual temp basal mode." : {
+
+    },
+    "When ON, Trio can still send a cancel (0 duration / 0 rate) even if a manual temp basal is active." : {
+
     },
     "When Remote Control is enabled, you can send boluses, overrides, temporary targets, carbs, and other commands to Trio via push notifications." : {
       "localizations" : {
@@ -265340,6 +265436,9 @@
           }
         }
       }
+    },
+    "When triggered, Trio will cancel the temp basal and attempt to return to scheduled basal." : {
+
     },
     "When true, raises BG target when autosens detects sensitivity" : {
       "comment" : "”Sensitivity Raises Target\"",

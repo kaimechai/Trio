@@ -12,6 +12,10 @@ extension SettingsExport {
         @Injected() var overrideStorage: OverrideStorage!
         @Injected() var tempTargetsStorage: TempTargetsStorage!
 
+        // Published state for UI binding
+        @Published var selectedCategories: Set<ExportCategory> = Set(ExportCategory.allCases)
+        @Published var isExporting: Bool = false
+
         // Help Sheet
         var isHelpSheetPresented: Bool = false
         var helpSheetDetent = PresentationDetent.large
@@ -21,33 +25,13 @@ extension SettingsExport {
         private var buildNumber: String = ""
         private var branch: String = ""
 
-        let viewContext = CoreDataStack.shared.persistentContainer.viewContext
-
         override func subscribe() {
             versionNumber = Bundle.main.appDevVersion ?? "Unknown"
             buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
             branch = BuildDetails.shared.branchAndSha
         }
 
-        // Export categories for selective export
-        enum ExportCategory: String, CaseIterable, Identifiable {
-            var id: String { rawValue }
-
-            case metadata = "Metadata"
-            case devices = "Devices"
-            case therapy = "Therapy"
-            case algorithm = "Algorithm"
-            case features = "Features"
-            case notifications = "Notifications"
-            case services = "Services"
-            case tempTargetPresets = "Temp Target Presets"
-            case overridePresets = "Override Presets"
-            case mealPresets = "Meal Presets"
-        }
-
-        // Published state for UI binding
-        @Published var selectedCategories: Set<ExportCategory> = Set(ExportCategory.allCases)
-        @Published var isExporting: Bool = false
+        let viewContext = CoreDataStack.shared.persistentContainer.viewContext
 
         enum ExportError: LocalizedError {
             case documentsDirectoryNotFound
@@ -66,9 +50,35 @@ extension SettingsExport {
             }
         }
 
-        /// Exports selected Trio settings to a CSV file
-        ///
-        /// This function creates an export of the user's selected Trio configuration categories including:
+        enum ExportCategory: String, CaseIterable, Identifiable {
+            var id: String { rawValue }
+            case metadata = "Metadata"
+            case devices = "Devices"
+            case therapy = "Therapy"
+            case algorithm = "Algorithm"
+            case features = "Features"
+            case notifications = "Notifications"
+            case services = "Services"
+            case tempTargetPresets = "Temp Target Presets"
+            case overridePresets = "Override Presets"
+            case mealPresets = "Meal Presets"
+        }
+
+        func exportSelectedSettings() async -> Result<URL, ExportError> {
+            await exportSettings(categories: selectedCategories)
+        }
+
+        /// Toggle all categories on or off
+        func toggleAllCategories(_ enabled: Bool) {
+            selectedCategories = enabled ? Set(ExportCategory.allCases) : []
+        }
+
+        /// Check if all categories are selected
+        var allCategoriesSelected: Bool {
+            selectedCategories.count == ExportCategory.allCases.count
+        }
+
+        /// This function creates an export of the user's self-selected Trio Configuration and Settings categories to a CSV file including:
         /// - Export metadata (date, app version, build) [optional]
         /// - Device settings (CGM, pump information) [optional]
         /// - Therapy profiles (basal rates, ISF, carb ratios, targets) [optional]
@@ -77,43 +87,43 @@ extension SettingsExport {
         /// - Notification settings [optional]
         /// - Service configurations [optional]
         /// - Preset data [optional]
-        ///
-        /// - Parameter categories: Set of categories to include in export. If nil, exports all categories.
-        /// - Parameter format: Export format to use. If nil, uses currently selected format.
-        /// - Returns: A Result containing either the file URL on success or an ExportError on failure
-        func exportSettings(
-            categories: Set<ExportCategory>? = nil
-        ) async -> Result<URL, ExportError> {
+        /// - Parameter categories: Set of categories to include. If nil, exports all.
+        /// - Parameter format: Export format to use. If nil, uses currently selected.
+        /// - Returns: Result contains the file URL on success or ExportError on failure.
+
+        // the big exporter
+        func exportSettings(categories: Set<ExportCategory>? = nil) async -> Result<URL, ExportError> {
             debug(.default, "🔄 EXPORT: Starting settings export...")
-            
+
             await MainActor.run { isExporting = true }
-            
+
             defer { Task { @MainActor in isExporting = false } }
-            
+
+            /// Exports settings using the currently selected categories and format
             let categoriesToExport = categories ?? selectedCategories
             debug(
                 .default,
                 "🔄 EXPORT: Exporting categories: \(categoriesToExport.map(\.rawValue).joined(separator: ", ")) in .CSV format"
             )
-            
+
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
             let timestamp = formatter.string(from: Date())
             let fileName = "TrioSettings_\(timestamp).csv"
-            
+
             // Use the Documents directory for better sharing compatibility
             guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
                 return .failure(.documentsDirectoryNotFound)
             }
             let fileURL = documentsDirectory.appendingPathComponent(fileName)
             debug(.default, "Export file path: \(fileURL.path)")
-            
+
             var exportSettings: [ExportSetting] = []
-            
+
             let trioSettings = settingsManager.settings
             let preferences = settingsManager.preferences
             debug(.default, "🔄 EXPORT: Settings managers initialized")
-            
+
             // Helper function to add a setting
             func addSetting(category: String, subcategory: String = "", name: String, value: String, unit: String = "") {
                 exportSettings.append(ExportSetting(
@@ -124,7 +134,7 @@ extension SettingsExport {
                     unit: unit
                 ))
             }
-            
+
             // Export metadata - always include basic export info
             if categoriesToExport.contains(.metadata) {
                 let exportCategory = String(localized: "Metadata")
@@ -137,7 +147,7 @@ extension SettingsExport {
                 addSetting(category: exportCategory, name: String(localized: "Build Number"), value: buildNumber)
                 addSetting(category: exportCategory, name: String(localized: "Branch"), value: branch)
             }
-            
+
             // Devices
             if categoriesToExport.contains(.devices) {
                 let devicesCategory = String(localized: "Devices", comment: "Devices menu item in the Settings main view.")
@@ -150,7 +160,7 @@ extension SettingsExport {
                 // Pump Information
                 if let pumpManager = provider.deviceManager.pumpManager {
                     addSetting(category: devicesCategory, name: String(localized: "Pump Type"), value: pumpManager.localizedTitle)
-                    
+
                     // Get insulin type from pump manager if available, otherwise from preferences
                     let insulinTypeValue: String
                     if let pumpManager = provider.deviceManager.pumpManager,
@@ -178,11 +188,11 @@ extension SettingsExport {
                     )
                 }
             }
-            
+
             // Therapy Settings
             if categoriesToExport.contains(.therapy) {
                 let therapyCategory = String(localized: "Therapy", comment: "Therapy menu item in the Settings main view.")
-                
+
                 // Units and Limits subcategory
                 let unitsLimitsSubcategory = String(localized: "Units and Limits")
                 addSetting(
@@ -198,7 +208,7 @@ extension SettingsExport {
                     value: String(describing: preferences.maxIOB),
                     unit: "U"
                 )
-                
+
                 // Add missing pump settings from PumpSettings
                 let pumpSettings = settingsManager.pumpSettings
                 addSetting(
@@ -231,13 +241,13 @@ extension SettingsExport {
                         String(describing: preferences.threshold_setting.asMmolL),
                     unit: trioSettings.units.rawValue
                 )
-                
+
                 // Get therapy profiles from storage
                 let basalProfile = storage.retrieve(OpenAPS.Settings.basalProfile, as: [BasalProfileEntry].self) ?? []
                 let isfProfileContainer = storage.retrieve(OpenAPS.Settings.insulinSensitivities, as: InsulinSensitivities.self)
                 let crProfileContainer = storage.retrieve(OpenAPS.Settings.carbRatios, as: CarbRatios.self)
                 let targetProfileContainer = storage.retrieve(OpenAPS.Settings.bgTargets, as: BGTargets.self)
-                
+
                 // Glucose Targets subcategory
                 let glucoseTargetsSubcategory = String(localized: "Glucose Targets")
                 if let targetContainer = targetProfileContainer {
@@ -253,7 +263,7 @@ extension SettingsExport {
                         )
                     }
                 }
-                
+
                 // Basal Rates subcategory
                 let basalRatesSubcategory = String(localized: "Basal Rates")
                 for entry in basalProfile {
@@ -265,7 +275,7 @@ extension SettingsExport {
                         unit: String(localized: "U/hr", comment: "Insulin unit per hour abbreviation")
                     )
                 }
-                
+
                 // Carb Ratios subcategory
                 let carbRatiosSubcategory = String(localized: "Carb Ratios")
                 if let crContainer = crProfileContainer {
@@ -279,7 +289,7 @@ extension SettingsExport {
                         )
                     }
                 }
-                
+
                 // Insulin Sensitivities subcategory
                 let insulinSensitivitiesSubcategory = String(localized: "Insulin Sensitivities")
                 if let isfContainer = isfProfileContainer {
@@ -295,12 +305,12 @@ extension SettingsExport {
                     }
                 }
             }
-            
+
             // Algorithm Settings
             if categoriesToExport.contains(.algorithm) {
                 let algorithmCategory = String(localized: "Algorithm", comment: "Algorithm menu item in the Settings main view.")
                 let pumpSettings = settingsManager.pumpSettings
-                
+
                 // Autosens Settings
                 let autosensSubcategory = String(localized: "Autosens")
                 addSetting(
@@ -323,7 +333,7 @@ extension SettingsExport {
                     name: String(localized: "Rewind Resets Autosens"),
                     value: preferences.rewindResetsAutosens ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
-                
+
                 // SMB Settings
                 let smbSubcategory = String(localized: "SMB")
                 addSetting(
@@ -400,10 +410,10 @@ extension SettingsExport {
                     value: String(format: "%.0f", (preferences.maxDeltaBGthreshold as NSDecimalNumber).doubleValue * 100),
                     unit: "%"
                 )
-                
+
                 // Dynamic Settings
                 let dynamicSubcategory = String(localized: "Dynamic Settings")
-                
+
                 // Proper Dynamic ISF handling using the current enum logic
                 let dynamicISFValue: String
                 if !preferences.useNewFormula {
@@ -419,7 +429,7 @@ extension SettingsExport {
                     name: String(localized: "Dynamic ISF"),
                     value: dynamicISFValue
                 )
-                
+
                 // Show adjustment factors as percentages with proper labels
                 if preferences.useNewFormula {
                     if !preferences.sigmoid {
@@ -443,7 +453,7 @@ extension SettingsExport {
                         )
                     }
                 }
-                
+
                 // Weighted Average of TDD is shown for both logarithmic and sigmoid when Dynamic ISF is enabled
                 addSetting(
                     category: algorithmCategory,
@@ -458,7 +468,7 @@ extension SettingsExport {
                     name: String(localized: "Adjust Basal"),
                     value: preferences.tddAdjBasal ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
-                
+
                 // Target Behavior
                 let targetBehaviorSubcategory = String(localized: "Target Behavior")
                 addSetting(
@@ -496,10 +506,10 @@ extension SettingsExport {
                         String(describing: preferences.halfBasalExerciseTarget.asMmolL),
                     unit: trioSettings.units.rawValue
                 )
-                
+
                 // Additional Algorithm Settings
                 let additionalsSubcategory = String(localized: "Additionals")
-                
+
                 addSetting(
                     category: algorithmCategory,
                     subcategory: additionalsSubcategory,
@@ -555,6 +565,7 @@ extension SettingsExport {
                     name: String(localized: "Suspend Zeros IOB"),
                     value: preferences.suspendZerosIOB ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
+
                 // SMB settings that belong in Additionals (correct order based on UI)
                 addSetting(
                     category: algorithmCategory,
@@ -600,7 +611,7 @@ extension SettingsExport {
                     value: String(format: "%.0f", (preferences.noisyCGMTargetMultiplier as NSDecimalNumber).doubleValue * 100),
                     unit: "%"
                 )
-            
+
                 // SAFETY_GUARD
                 let safetySubcategory = String(localized: "Safety")
                 addSetting(
@@ -624,8 +635,9 @@ extension SettingsExport {
                 addSetting(
                     category: algorithmCategory,
                     subcategory: safetySubcategory,
-                    name: String(localized: "Allow cancel during manual temp basal"),
-                    value: trioSettings.allowCancelDuringManualTempBasal ? String(localized: "Enabled") : String(localized: "Disabled")
+                    name: String(localized: "Allow overriding or cancelling a manual temp basal"),
+                    value: trioSettings
+                        .allowOverrideManualTempBasal ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
                 addSetting(
                     category: algorithmCategory,
@@ -633,7 +645,8 @@ extension SettingsExport {
                     name: String(localized: "Minimum temp basal floor"),
                     value: "\(NSDecimalNumber(decimal: trioSettings.minTempBasalFloorUph)) U/hr"
                 )
-            
+            }
+
             // Features
             if categoriesToExport.contains(.features) {
                 let featuresCategory = String(localized: "Features", comment: "Features menu item in the Settings main view.")
@@ -751,7 +764,10 @@ extension SettingsExport {
                     category: featuresCategory,
                     subcategory: mealSettingsSubcategory,
                     name: String(localized: "Fat and Protein Percentage"),
-                    value: String(format: "%.0f", (trioSettings.individualAdjustmentFactor as NSDecimalNumber).doubleValue * 100),
+                    value: String(
+                        format: "%.0f",
+                        (trioSettings.individualAdjustmentFactor as NSDecimalNumber).doubleValue * 100
+                    ),
                     unit: "%"
                 )
 
@@ -808,7 +824,8 @@ extension SettingsExport {
                     subcategory: userInterfaceSubcategory,
                     name: String(localized: "High Threshold"),
                     value: trioSettings
-                        .units == .mgdL ? String(describing: trioSettings.high) : String(describing: trioSettings.high.asMmolL),
+                        .units == .mgdL ? String(describing: trioSettings.high) :
+                        String(describing: trioSettings.high.asMmolL),
                     unit: trioSettings.units.rawValue
                 )
                 addSetting(
@@ -1229,14 +1246,15 @@ extension SettingsExport {
                         let request: NSFetchRequest<MealPresetStored> = MealPresetStored.fetchRequest()
                         let mealPresets = try self.viewContext.fetch(request)
 
-                        return mealPresets.map { preset -> (dish: String, carbs: Decimal?, fat: Decimal?, protein: Decimal?) in
-                            (
-                                dish: preset.dish ?? "Unknown Meal",
-                                carbs: preset.carbs?.decimalValue,
-                                fat: preset.fat?.decimalValue,
-                                protein: preset.protein?.decimalValue
-                            )
-                        }
+                        return mealPresets
+                            .map { preset -> (dish: String, carbs: Decimal?, fat: Decimal?, protein: Decimal?) in
+                                (
+                                    dish: preset.dish ?? "Unknown Meal",
+                                    carbs: preset.carbs?.decimalValue,
+                                    fat: preset.fat?.decimalValue,
+                                    protein: preset.protein?.decimalValue
+                                )
+                            }
                     }
 
                     debug(.default, "Found \(mealPresetData.count) meal presets")
@@ -1337,25 +1355,6 @@ extension SettingsExport {
                 debug(.default, "Failed to write settings export file: \(error)")
                 return .failure(.fileWriteError(error))
             }
-        }
-
-        /// Exports settings using the currently selected categories and format
-        func exportSelectedSettings() async -> Result<URL, ExportError> {
-            await exportSettings(categories: selectedCategories)
-        }
-
-        /// Toggle all categories on or off
-        func toggleAllCategories(_ enabled: Bool) {
-            if enabled {
-                selectedCategories = Set(ExportCategory.allCases)
-            } else {
-                selectedCategories = []
-            }
-        }
-
-        /// Check if all categories are selected
-        var allCategoriesSelected: Bool {
-            selectedCategories.count == ExportCategory.allCases.count
         }
     }
 }

@@ -27,7 +27,7 @@ extension AlgorithmAdvancedSettings {
         @Published var maxTempBasalDurationMinutes: Decimal = 30
         @Published var maxTempBasalAgeMinutes: Decimal = 30
         @Published var cgmStaleMinutes: Decimal = 15
-        @Published var allowCancelDuringManualTempBasal: Bool = false
+        @Published var allowOverrideManualTempBasal: Bool = false
         @Published var minTempBasalFloorUph: Decimal = 0.05
 
         var pumpSettings: PumpSettings {
@@ -63,8 +63,8 @@ extension AlgorithmAdvancedSettings {
             subscribePreferencesSetting(\.cgmStaleMinutes, on: $cgmStaleMinutes) {
                 cgmStaleMinutes = $0
             }
-            subscribePreferencesSetting(\.allowCancelDuringManualTempBasal, on: $allowCancelDuringManualTempBasal) {
-                allowCancelDuringManualTempBasal = $0
+            subscribePreferencesSetting(\.allowOverrideManualTempBasal, on: $allowOverrideManualTempBasal) {
+                allowOverrideManualTempBasal = $0
             }
             subscribePreferencesSetting(\.minTempBasalFloorUph, on: $minTempBasalFloorUph) {
                 minTempBasalFloorUph = $0
