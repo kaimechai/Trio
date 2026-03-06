@@ -1,23 +1,26 @@
 import Foundation
 
+// SAFETY_GUARDS
+
 struct SafetyGuardsConfig {
     // Hard limits (not user-facing)
     static let tickSeconds: UInt64 = 60
     static let maxFloorActiveSeconds: TimeInterval = 15 * 60
     static let loopStaleSeconds: TimeInterval = 15 * 60
 
-    // DASH basal increment
+    // Pump basal increments
     static let dashBasalIncrementUph: Double = 0.05
 
-    // Derived tolerance for comparisons
-    static let basalRateEpsilon: Double = dashBasalIncrementUph / 2.0 // 0.025
+    // Derived tolerance for comparisons to prevent errors
+    static let cancelDurationEpsilon: TimeInterval = .ulpOfOne // super tiny seconds
+    static let dashBasalEpsilon: Double = dashBasalIncrementUph / 2.0 // 0.025
 
     // User-driven preferences set in settings
     let maxTempBasalDurationSeconds: TimeInterval
     let maxTempBasalAgeSeconds: TimeInterval
     let cgmStaleSeconds: TimeInterval
     let allowOverrideManualTempBasal: Bool
-    let minBasalFloorUph: Double
+    let minTempBasalFloorUph: Double
 
     init(preferences: Preferences) {
         // DASH basal duration allowance: cancel (0) OR 30..720 minutes
@@ -49,6 +52,6 @@ struct SafetyGuardsConfig {
 
         allowOverrideManualTempBasal = preferences.allowOverrideManualTempBasal
 
-        minBasalFloorUph = NSDecimalNumber(decimal: preferences.minTempBasalFloorUph).doubleValue
+        minTempBasalFloorUph = NSDecimalNumber(decimal: preferences.minTempBasalFloorUph).doubleValue
     }
 }

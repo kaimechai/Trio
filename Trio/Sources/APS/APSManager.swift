@@ -82,17 +82,7 @@ final class BaseAPSManager: APSManager, Injectable {
     @Injected() private var tddStorage: TDDStorage!
     @Injected() private var broadcaster: Broadcaster!
     @Injected() private var glucoseStorage: GlucoseStorage!
-
-    // SAFETY_GUARD
-    @Persisted(key: "lastSafetyBasalRevertAlertDate") private var lastSafetyBasalRevertAlertDate: Date = .distantPast
-    @Persisted(key: "lastSafetyBasalRevertAlertMessage") private var lastSafetyBasalRevertAlertMessage: String = ""
-    @Persisted(key: "lastLoopStartDate") private var lastLoopStartDate: Date = .distantPast
-    @Persisted(key: "lastLoopDate") var lastLoopDate: Date = .distantPast {
-        didSet {
-            lastLoopDateSubject.send(lastLoopDate)
-        }
-    }
-
+    
     let viewContext = CoreDataStack.shared.persistentContainer.viewContext
     let privateContext = CoreDataStack.shared.newTaskContext()
 
@@ -109,17 +99,27 @@ final class BaseAPSManager: APSManager, Injectable {
 
     var bluetoothManager: BluetoothStateManager? { deviceDataManager.bluetoothManager }
 
-    @Persisted(key: "isManualTempBasal") var isManualTempBasal: Bool = false
-
     @Persisted(key: "isScheduledBasal") var isScheduledBasal: Bool? = false
 
     @Persisted(key: "isSuspended") var isSuspended: Bool = false
 
+    @Persisted(key: "isManualTempBasal") var isManualTempBasal: Bool = false
+    
+    // SAFETY_GUARDS: Keys
+    @Persisted(key: "tempBasalSource") var tempBasalSource: TempBasalSource = .none
+    
+    @Persisted(key: "lastSafetyBasalRevertAlertDate") private var lastSafetyBasalRevertAlertDate: Date = .distantPast
+    @Persisted(key: "lastSafetyBasalRevertAlertMessage") private var lastSafetyBasalRevertAlertMessage: String = ""
+    @Persisted(key: "lastLoopStartDate") private var lastLoopStartDate: Date = .distantPast
+    @Persisted(key: "lastLoopDate") var lastLoopDate: Date = .distantPast {
+        didSet {
+            lastLoopDateSubject.send(lastLoopDate)}
+    }
+    
     let isLooping = CurrentValueSubject<Bool, Never>(false)
     let lastLoopDateSubject = PassthroughSubject<Date, Never>()
     let lastError = CurrentValueSubject<Error?, Never>(nil)
     let iobFileDidUpdate = PassthroughSubject<Void, Never>()
-
     let bolusProgress = CurrentValueSubject<Decimal?, Never>(nil)
 
     var pumpDisplayState: CurrentValueSubject<PumpDisplayState?, Never> {
@@ -207,35 +207,44 @@ final class BaseAPSManager: APSManager, Injectable {
                 self.isSuspended = suspended
             }
             .store(in: &lifetime)
-
-        // SAFETY_GUARDS
-        // manage a manual Temp Basal from PumpManager - force loop() after manual temp basal is cancelled or finishes
+        
+        // SAFETY_GUARDS Edit: PumpManager to Force Loop After Manual Temp Basal Cancelled or Finished
         deviceDataManager.manualTempBasal
             .removeDuplicates()
             .receive(on: processQueue)
             .sink { [weak self] manualBasal in
                 guard let self else { return }
 
-                let wasManual = self.isManualTempBasal
-                self.isManualTempBasal = manualBasal
+                let wasManual = (self.tempBasalSource == .manual)
+                self.updateTempBasalSourceTracking(source: manualBasal ? .manual : .none)
 
-                if wasManual, !manualBasal {
+                // old code below to make sure new code does what is intended: identify end of a manual temp basal from PumpManager to force loop after manual temp basal cancelled/ finished
+                // let wasManual = self.isManualTempBasal
+                // self.isManualTempBasal = manualBasal
+                
+                if manualBasal {
+                    debug(.apsManager, "Manual temp basal started")
+                } else if wasManual {
                     debug(.apsManager, "Manual temp basal ended -> forcing loop()")
                     self.loop()
-                } else if !wasManual, manualBasal {
-                    debug(.apsManager, "Manual temp basal started")
                 }
             }
             .store(in: &lifetime)
     }
 
-    // SAFETY_GUARDS: watchdog scheduler + rules
+// SAFETY_GUARDS: Update Temp Basal Source
+    private func updateTempBasalSourceTracking(
+        source: TempBasalSource) {
+        tempBasalSource = source
+        isManualTempBasal = (source == .manual)
+    }
+    
+// SAFETY_GUARDS: Watchdog Scheduler and Rules
     private let safetyGuards = SafetyGuards()
 
     func heartbeat(date: Date) {
         let prefs = storage.retrieve(OpenAPS.Settings.preferences, as: Preferences.self) ?? Preferences()
         let config = SafetyGuardsConfig(preferences: prefs)
-        // TODO: check if need anything from TrioSettings and if so, add it here
 
         safetyGuards.startIfNeeded(every: .seconds(Int(SafetyGuardsConfig.tickSeconds))) { [weak self] in
             await self?.safetyGuardsTick()
@@ -640,24 +649,15 @@ final class BaseAPSManager: APSManager, Injectable {
         bolusProgress.send(nil)
     }
 
-    // ---------- BEGIN SAFETY_GUARDS ----------
-
+// --------- BEGIN MAIN BODY OF SAFETY_GUARDS --------- //
+    
     private func effectiveIsManualTempBasal(tempActive: Bool) -> Bool {
         guard tempActive else { return false }
-
         // If PumpManager exposes authoritative, use it here.
-        // Otherwise, fall back:
-        return isManualTempBasal
+        return tempBasalSource == .manual
     }
-
-    private func cancelTempBasalForSafety(now _: Date, reason: String) async {
-        await cancelTempBasalAndVerify(reason: reason)
-
-        // If you want the "prior rate/remaining minutes" message, fetch tb *before* cancelling:
-        // (Only do this if it’s worth the extra pump status call.)
-        broadcastSafetyBasalRevert(message: "Safety revert: \(reason) Please verify delivery.")
-    }
-
+    
+    //SAFETY_GUARDS
     private func safetyGuardsTick() async {
         let now = Date()
 
@@ -676,7 +676,7 @@ final class BaseAPSManager: APSManager, Injectable {
                 tempBasalIsActive: tempActive,
                 tempBasalStart: tb.timestamp,
                 tempBasalRateUph: rateUph,
-                isManualTempBasal: effectiveManual,
+                tempBasalSource: tempBasalSource,
                 lastGlucoseDate: lastGlucoseDate,
                 lastLoopDate: lastLoopDate,
                 config: config
@@ -687,22 +687,111 @@ final class BaseAPSManager: APSManager, Injectable {
                 return
 
             case let .cancelTempBasal(reason):
-                warning(.apsManager, "SAFETY_GUARDS triggered: \(reason)")
+                warning(.apsManager, "Safety Guards triggered: \(reason)")
                 await cancelTempBasalAndVerify(reason: reason)
-                broadcastSafetyBasalRevert(message: "Safety revert: \(reason) Please verify delivery.")
+                broadcastSafetyBasalRevert(message: "Safety revert to scheduled basal: \(reason) Please verify delivery.")
             }
         } catch {
             debug(.apsManager, "SAFETY_GUARDS tick error: \(error)")
         }
     }
 
-    // SAFETY_GUARDS
-    private func cancelTempBasalAndVerify(reason: String) async {
-        warning(.apsManager, "SAFETY_GUARDS: cancelling temp basal: \(reason)")
+// SAFETY_GUARDS: THE BREAD AND BUTTER TEMP BASAL RULES
+    func enactTempBasal(rate: Double, duration: TimeInterval) async {
+        if let error = verifyStatus() {
+            processError(error)
+            return
+        }
+
+        guard let pump = pumpManager else { return }
 
         let prefs = storage.retrieve(OpenAPS.Settings.preferences, as: Preferences.self) ?? Preferences()
         let config = SafetyGuardsConfig(preferences: prefs)
-        guard !isManualTempBasal || config.allowOverrideManualTempBasal else { return }
+
+        // Robust Cancel Detection
+        let isCancel =
+            duration <= SafetyGuardsConfig.cancelDurationEpsilon &&
+            abs(rate) <= SafetyGuardsConfig.dashBasalEpsilon
+
+        let manualTempActive = (tempBasalSource == .manual)
+        
+        // Rule 1: If override is enabled, allow any temp basal enact (including cancel and overwrite)
+        let canOverrideManual = !manualTempActive || config.allowOverrideManualTempBasal
+
+        // Trio default: block all temp basal actions during a manual temp basal unless override is enabled
+        if !canOverrideManual {
+            let message =
+                isCancel
+                ? "Not allowed to cancel manual temp basal by default but can change in advanced settings"
+                : "Loop not possible during manual temp basal"
+            processError(APSError.manualBasalTemp(message: message))
+            return
+        }
+        
+        // Single Cancel Branch - Does this hit automatic and unknown temp basals?
+        if isCancel {
+            do {
+                try await pump.enactTempBasal(unitsPerHour: 0, for: 0)
+                updateTempBasalSourceTracking(source: .none)
+                debug(.apsManager, "Temp basal cancelled")
+            } catch {
+                debug(.apsManager, "Temp basal cancel failed with error: \(error)")
+                processError(APSError.pumpError(error))
+            }
+            return
+        }
+
+    // SAFETY_GUARDS: General Temp Basal Safety Modifiers
+        
+        // Used For Max Temp Basal Duration (4), Min Temp Basal Floor, and Max Floor Active Rules (6)
+        let clampedDuration = min(duration, config.maxTempBasalDurationSeconds)
+        let flooredRate = max(rate, config.minTempBasalFloorUph)
+
+        // Guard Against Non-Finite and Negatives
+        guard clampedDuration.isFinite,
+              flooredRate.isFinite,
+              clampedDuration >= 0,
+              flooredRate >= 0
+        else {
+            warning(.apsManager, "Safety Guards refusing invalid temp basal (rate=\(flooredRate), dur=\(clampedDuration))")
+            broadcastSafetyBasalRevert(message: "Safety Guards refused temp basal due to invalid values. Verify delivery.")
+            return
+        }
+
+        // Final Rounding Guard
+        let roundedRate = pump.roundToSupportedBasalRate(unitsPerHour: flooredRate)
+
+        if roundedRate + SafetyGuardsConfig.dashBasalEpsilon < config.minTempBasalFloorUph {
+            warning(.apsManager, "Safety Guards rounded rate \(roundedRate) fell below minimum basal floor \(config.minTempBasalFloorUph); refusing.")
+            broadcastSafetyBasalRevert(message: "Safety Guards refused temp basal because rounded rate fell below floor. Verify delivery.")
+            return
+        }
+
+        // SAFETY_GUARDS: Adjusted Enact of Loop Temp Basal
+        do {
+            try await pump.enactTempBasal(unitsPerHour: roundedRate, for: clampedDuration)
+            updateTempBasalSourceTracking(source: .automatic)
+            debug(.apsManager, "Temp basal enacted: \(roundedRate) U/hr for \(clampedDuration / 60) minutes")
+        } catch {
+            debug(.apsManager, "Temp basal enact failed with error: \(error)")
+            processError(APSError.pumpError(error))
+        }
+    }
+
+// SAFETY_GUARDS
+    private func cancelTempBasalForSafety(now _: Date, reason: String) async {
+        await cancelTempBasalAndVerify(reason: reason)
+
+        // If you want the "prior rate/remaining minutes" message, fetch tb *before* cancelling:
+        // (Only do this if it’s worth the extra pump status call.)
+        broadcastSafetyBasalRevert(message: "Safety revert: \(reason) Please verify delivery.")
+    }
+
+// SAFETY_GUARDS: Verify Cancelled Temp Basal
+    private func cancelTempBasalAndVerify(reason: String)
+        async {
+        warning(.apsManager, "Safety Guards cancelling temp basal: \(reason)")
+
         await enactTempBasal(rate: 0, duration: 0)
 
         // Give the pump a moment to process
@@ -710,9 +799,9 @@ final class BaseAPSManager: APSManager, Injectable {
 
         // Re-check using pump status if available
         if case .tempBasal = pumpManager?.status.basalDeliveryState {
-            warning(.apsManager, "SAFETY_GUARDS: cancel may have failed; pump still reports temp basal active.")
+            warning(.apsManager, "Safety Guards cancel may have failed; pump reports temp basal remains active.")
             broadcastSafetyBasalRevert(
-                message: "Safety attempted to cancel temp basal, but pump still reports temp basal active. Verify pump delivery immediately."
+                message: "Attempted to cancel temp basal for safety but pump reports temp basal is still active. Verify pump delivery immediately."
             )
         }
     }
@@ -741,80 +830,7 @@ final class BaseAPSManager: APSManager, Injectable {
         }
     }
 
-    // SAFETY_GUARDS
-
-    func enactTempBasal(rate: Double, duration: TimeInterval) async {
-        if let error = verifyStatus() {
-            processError(error)
-            return
-        }
-
-        guard let pump = pumpManager else { return }
-
-        let prefs = storage.retrieve(OpenAPS.Settings.preferences, as: Preferences.self) ?? Preferences()
-        let config = SafetyGuardsConfig(preferences: prefs)
-
-        let isCancel = (duration == 0) && (rate == 0)
-
-        // Manual temp basal interference policy:
-        // Trio default: block ANY enact (including cancel) if manual temp basal active.
-        // If override is enabled: allow any enact (including cancel and overwrite).
-        let canInterfere = (!isManualTempBasal) || config.allowOverrideManualTempBasal
-
-        guard canInterfere else {
-            processError(APSError.manualBasalTemp(message: "Loop not possible during the manual basal temp"))
-            return
-        }
-
-        // CLAMP DURATION
-        let clampedDuration: TimeInterval = {
-            if isCancel { return 0 }
-            return min(duration, config.maxTempBasalDurationSeconds)
-        }()
-
-        // FLOOR RATE (before rounding)
-        let flooredRate: Double = {
-            if isCancel { return 0 }
-            return max(rate, config.minBasalFloorUph)
-        }()
-
-        // Guard against non-finite and negatives
-        guard clampedDuration.isFinite, flooredRate.isFinite,
-              clampedDuration >= 0, flooredRate >= 0
-        else {
-            warning(.apsManager, "SAFETY_GUARDS: refusing invalid temp basal (rate=\(flooredRate), dur=\(clampedDuration))")
-            broadcastSafetyBasalRevert(message: "Safety refused temp basal due to invalid values. Verify delivery.")
-            return
-        }
-
-        // ROUND LAST
-        let roundedRate = pump.roundToSupportedBasalRate(unitsPerHour: flooredRate)
-
-        // Rounding guard
-        if !isCancel, roundedRate + 1E-9 < config.minBasalFloorUph {
-            warning(
-                .apsManager,
-                "SAFETY_GUARDS: rounded rate \(roundedRate) fell below floor \(config.minBasalFloorUph); refusing."
-            )
-            broadcastSafetyBasalRevert(
-                message: "Safety refused temp basal because rounded rate fell below floor. Verify delivery."
-            )
-            return
-        }
-        debug(
-            .apsManager,
-            "Enact temp basal: req rate=\(rate) dur=\(duration)s -> floored=\(flooredRate) rounded=\(roundedRate) dur=\(clampedDuration)s"
-        )
-
-        do {
-            try await pump.enactTempBasal(unitsPerHour: roundedRate, for: clampedDuration)
-            debug(.apsManager, "Temp Basal succeeded")
-        } catch {
-            debug(.apsManager, "Temp Basal failed with error: \(error)")
-            processError(APSError.pumpError(error))
-        }
-    }
-
+    // NOT originally SAFETY_GUARDS but now basically fully integrated into SAFETY_GUARDS
     private func fetchCurrentTempBasal(date: Date) async throws -> TempBasal {
         let results = try await CoreDataStack.shared.fetchEntitiesAsync(
             ofType: PumpEventStored.self,
@@ -845,7 +861,7 @@ final class BaseAPSManager: APSManager, Injectable {
         // SAFETY_GUARDS
         switch state {
         case .active:
-            // No temp basal active. Timestamp should just be "now".
+        // No temp basal active. Timestamp should just be "now".
             return TempBasal(duration: 0, rate: 0, temp: .absolute, timestamp: date)
 
         case let .tempBasal(dose):
@@ -860,6 +876,8 @@ final class BaseAPSManager: APSManager, Injectable {
         }
     }
 
+    // --------- END OF SAFETY_GUARDS --------- //
+    
     private func enactDetermination() async throws {
         guard let determinationID = try await determinationStorage
             .fetchLastDeterminationObjectID(predicate: NSPredicate.predicateFor30MinAgoForDetermination).first
@@ -875,11 +893,6 @@ final class BaseAPSManager: APSManager, Injectable {
         if pump.status.pumpStatus.suspended {
             info(.apsManager, "Skipping enactDetermination because pump is suspended")
             return // return without throwing an error
-        }
-
-        // Notice for SAFETY_GUARDS - Block temp basal start during manual temp basal (default Trio behavior)
-        if isManualTempBasal {
-            throw APSError.manualBasalTemp(message: "Loop not possible during the manual basal temp")
         }
 
         let (rateDecimal, durationInSeconds, smbToDeliver) = try await setValues(determinationID: determinationID)
@@ -1408,6 +1421,7 @@ final class BaseAPSManager: APSManager, Injectable {
     }
 }
 
+// Not SAFETY_GUARDS but relevant to SAFETY_GUARDS
 private extension PumpManager {
     func enactTempBasal(unitsPerHour: Double, for duration: TimeInterval) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in

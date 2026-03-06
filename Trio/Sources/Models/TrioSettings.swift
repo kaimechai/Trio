@@ -71,13 +71,6 @@ struct TrioSettings: JSON, Equatable {
     var smartStackView: LockScreenView = .simple
     var bolusShortcut: BolusShortcutLimit = .notAllowed
     var timeInRangeType: TimeInRangeType = .timeInTightRange
-    // SAFETY_GUARDS
-    var maxTempBasalDurationMinutes: Int = 30 // clamp enacted temps
-    var maxTempBasalAgeMinutes: Int = 30 // watchdog cancel threshold
-    var cgmStaleMinutes: Int = 15 // watchdog threshold
-    var allowOverrideManualTempBasal: Bool = false // allow cancel only
-    var minTempBasalFloorUph: Decimal = 0.05 // floor before rounding
-    // SAFETY_GUARDS
 }
 
 extension TrioSettings: Decodable {
@@ -310,28 +303,6 @@ extension TrioSettings: Decodable {
 
         if let timeInRangeType = try? container.decode(TimeInRangeType.self, forKey: .timeInRangeType) {
             settings.timeInRangeType = timeInRangeType
-        }
-
-        // SAFETY_GUARDS
-
-        if let v = try? container.decode(Int.self, forKey: .maxTempBasalDurationMinutes) {
-            settings.maxTempBasalDurationMinutes = v
-        }
-
-        if let v = try? container.decode(Int.self, forKey: .maxTempBasalAgeMinutes) {
-            settings.maxTempBasalAgeMinutes = v
-        }
-
-        if let v = try? container.decode(Int.self, forKey: .cgmStaleMinutes) {
-            settings.cgmStaleMinutes = v
-        }
-
-        if let v = try? container.decode(Bool.self, forKey: .allowOverrideManualTempBasal) {
-            settings.allowOverrideManualTempBasal = v
-        }
-
-        if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {
-            settings.minTempBasalFloorUph = v
         }
 
         self = settings

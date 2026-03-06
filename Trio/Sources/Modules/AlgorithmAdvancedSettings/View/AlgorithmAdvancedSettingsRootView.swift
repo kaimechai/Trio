@@ -390,8 +390,8 @@ extension AlgorithmAdvancedSettings {
                         Text("Note: A CGM is considered noisy when it provides inconsistent readings.")
                     }
                 )
-                
-            // SAFETY_GUARDS: Enable Override or Cancel Manual Temp Basal
+
+                // SAFETY_GUARDS: Enable Override or Cancel Manual Temp Basal
                 SettingInputSection(
                     decimalValue: $decimalPlaceholder,
                     booleanValue: $state.allowOverrideManualTempBasal,
@@ -401,33 +401,33 @@ extension AlgorithmAdvancedSettings {
                         set: {
                             selectedVerboseHint = $0.map { AnyView($0) }
                             hintLabel = String(
-                                localized: "Enable Override or Cancel of Manual Temp Basal",
-                                comment: "Enable Override or Cancel of Manual Temp Basal"
+                                localized: "Enable Override or Cancel Manual Temp Basal",
+                                comment: "Enable Override or Cancel Manual Temp Basal"
                             )
                         }
                     ),
                     units: state.units,
                     type: .boolean,
                     label: String(
-                        localized: "Enable Override or Cancel of Manual Temp Basal",
-                        comment: "Enable Override or Cancel of Manual Temp Basal"
+                        localized: "Enable Override or Cancel Manual Temp Basal",
+                        comment: "Enable Override or Cancel Manual Temp Basal"
                     ),
                     miniHint: String(
-                        localized: "Safety feature which allows overriding active manual temp basal so it can be cancelled.",
+                        localized: "Safety feature which allows overriding an active manual temp basal.",
                         comment: "Mini hint"
                     ),
                     verboseHint:
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Default: OFF").bold()
-                        Text("When OFF, Trio blocks temp basal actions during manual temp basal mode.")
-                        Text("When ON, Trio can still send a cancel (0 duration / 0 rate) even if a manual temp basal is active.")
+                        Text("When OFF, Trio blocks temp basal actions during an active manual temp basal.")
+                        Text("When ON, Trio can still send a cancel (0 duration / 0 rate) even if a manual temp basal is active. Then, Trio can give scheduled basal if lacking CGM data or enact a new, safer loop.")
                         Text(
                             "Use caution: Ensure your cancel path only cancels temp basal delivery and does not impact suspension state. If suspension is intended, ensure suspension is enacted."
                         )
                         .bold()
                     }
                 )
-                
+
                 // SAFETY_GUARDS: CGM Stale Threshold
                 SettingInputSection(
                     decimalValue: $state.cgmStaleMinutes,
@@ -439,7 +439,8 @@ extension AlgorithmAdvancedSettings {
                             selectedVerboseHint = $0.map { AnyView($0) }
                             hintLabel = String(
                                 localized: "CGM Stale Threshold",
-                                comment: "CGM Stale Threshold")
+                                comment: "CGM Stale Threshold"
+                            )
                         }
                     ),
                     units: state.units,
@@ -458,7 +459,7 @@ extension AlgorithmAdvancedSettings {
                         Text("This is intended to avoid continuing a potentially unsafe temp basal without fresh glucose data.")
                     }
                 )
-                
+
                 // SAFETY_GUARDS: Minimum Temp Basal Floor
                 SettingInputSection(
                     decimalValue: $state.minTempBasalFloorUph,
@@ -470,7 +471,8 @@ extension AlgorithmAdvancedSettings {
                             selectedVerboseHint = $0.map { AnyView($0) }
                             hintLabel = String(
                                 localized: "Minimum Temp Basal Floor",
-                                comment: "Minimum Temp Basal Floor")
+                                comment: "Minimum Temp Basal Floor"
+                            )
                         }
                     ),
                     units: state.units,
@@ -492,7 +494,7 @@ extension AlgorithmAdvancedSettings {
                         Text("Note: Omnipod DASH basal increments are 0.05 U/hr.").font(.footnote).foregroundColor(.secondary)
                     }
                 )
-                
+
                 // SAFETY_GUARDS: Max Temp Basal Duration
                 SettingInputSection(
                     decimalValue: $state.maxTempBasalDurationMinutes,
@@ -520,7 +522,7 @@ extension AlgorithmAdvancedSettings {
                             .foregroundColor(.secondary)
                     }
                 )
-                
+
                 // SAFETY_GUARDS: Max Temp Basal Age
                 SettingInputSection(
                     decimalValue: $state.maxTempBasalAgeMinutes,

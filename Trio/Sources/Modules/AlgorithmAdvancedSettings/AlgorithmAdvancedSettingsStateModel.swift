@@ -24,11 +24,11 @@ extension AlgorithmAdvancedSettings {
         @Published var smbDeliveryRatio: Decimal = 0.5
         @Published var smbInterval: Decimal = 3
         // SAFETY_GUARDS
+        @Published var allowOverrideManualTempBasal: Bool = false
+        @Published var cgmStaleMinutes: Decimal = 15
+        @Published var minTempBasalFloorUph: Decimal = 0.05
         @Published var maxTempBasalDurationMinutes: Decimal = 30
         @Published var maxTempBasalAgeMinutes: Decimal = 30
-        @Published var cgmStaleMinutes: Decimal = 15
-        @Published var allowOverrideManualTempBasal: Bool = false
-        @Published var minTempBasalFloorUph: Decimal = 0.05
 
         var pumpSettings: PumpSettings {
             provider.settings()
@@ -54,23 +54,18 @@ extension AlgorithmAdvancedSettings {
             subscribePreferencesSetting(\.smbInterval, on: $smbInterval) { smbInterval = $0 }
 
             // SAFETY_GUARDS
-            subscribePreferencesSetting(\.maxTempBasalDurationMinutes, on: $maxTempBasalDurationMinutes) {
-                maxTempBasalDurationMinutes = $0
-            }
-            subscribePreferencesSetting(\.maxTempBasalAgeMinutes, on: $maxTempBasalAgeMinutes) {
-                maxTempBasalAgeMinutes = $0
-            }
-            subscribePreferencesSetting(\.cgmStaleMinutes, on: $cgmStaleMinutes) {
-                cgmStaleMinutes = $0
-            }
             subscribePreferencesSetting(\.allowOverrideManualTempBasal, on: $allowOverrideManualTempBasal) {
-                allowOverrideManualTempBasal = $0
-            }
+                allowOverrideManualTempBasal = $0 }
+            subscribePreferencesSetting(\.cgmStaleMinutes, on: $cgmStaleMinutes) {
+                cgmStaleMinutes = $0 }
             subscribePreferencesSetting(\.minTempBasalFloorUph, on: $minTempBasalFloorUph) {
-                minTempBasalFloorUph = $0
-            }
-            insulinActionCurve = pumpSettings.insulinActionCurve
-        }
+                minTempBasalFloorUph = $0 }
+            subscribePreferencesSetting(\.maxTempBasalDurationMinutes, on: $maxTempBasalDurationMinutes) {
+                maxTempBasalDurationMinutes = $0 }
+            subscribePreferencesSetting(\.maxTempBasalAgeMinutes, on: $maxTempBasalAgeMinutes) {
+                maxTempBasalAgeMinutes = $0 }
+
+            insulinActionCurve = pumpSettings.insulinActionCurve }
 
         var isPumpSettingUnchanged: Bool {
             pumpSettings.insulinActionCurve == insulinActionCurve

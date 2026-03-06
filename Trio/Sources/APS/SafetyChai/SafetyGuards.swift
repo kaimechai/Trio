@@ -1,11 +1,13 @@
 import Foundation
 
+// SAFETY_GUARDS
+
 final class SafetyGuards {
     enum Action {
         case none
-        case cancelTempBasal(reason: String) // cancel current temp basal (revert to scheduled basal)
+        case cancelTempBasal(reason: String) // cancel current temp basal and revert to scheduled basal
     }
-
+    
     private var task: Task<Void, Never>?
 
     func startIfNeeded(every interval: Duration, tick: @escaping @Sendable() async -> Void) {
@@ -31,7 +33,7 @@ final class SafetyGuards {
         tempBasalIsActive: Bool,
         tempBasalStart: Date?,
         tempBasalRateUph: Double?,
-        isManualTempBasal: Bool,
+        tempBasalSource: TempBasalSource,
         lastGlucoseDate: Date?,
         lastLoopDate: Date,
         config: SafetyGuardsConfig
@@ -41,17 +43,14 @@ final class SafetyGuards {
               let tempBasalRateUph
         else { return .none }
 
-        let canInterfere = TempBasalInterferencePolicy.canInterfere(
-            isManualTempBasal: isManualTempBasal,
+        // Rule 1: Can Override or Cancel Manual Basal
+        let canOverrideManual = TempBasalOverridePolicy.canOverrideManual(
+            tempBasalSource: tempBasalSource,
             allowWhenManual: config.allowOverrideManualTempBasal
         )
 
-        let canOverride = isManualTempBasal
-            ? config.allowOverrideManualTempBasal
-            : true
-
-        // If we can't interfere with a manual temp basal, we can't cancel it for any rule.
-        guard canInterfere else { return .none }
+        // If we can't override a manual temp basal, we can't cancel it for any rule.
+        guard canOverrideManual else { return .none }
 
         let loopAge = now.timeIntervalSince(lastLoopDate)
         let age = now.timeIntervalSince(tempBasalStart)
@@ -65,6 +64,7 @@ final class SafetyGuards {
 
         // Rule 3: CGM stale OR missing date
         let isCGMStale = lastGlucoseDate.map { now.timeIntervalSince($0) >= config.cgmStaleSeconds } ?? true
+        
         if isCGMStale {
             let reason = (lastGlucoseDate == nil)
                 ? "CGM timestamp missing; reverting to scheduled basal."
@@ -72,27 +72,43 @@ final class SafetyGuards {
             return .cancelTempBasal(reason: reason)
         }
 
-        // Rule 4: Max temp basal age exceeded
+        // Rule 4: Max temp basal duration exceeded
+        if config.maxTempBasalDurationSeconds > 0,
+            age >= config.maxTempBasalDurationSeconds {
+            return .cancelTempBasal(
+                reason: "Temp basal exceeded maximum allowed duration (\(Int(config.maxTempBasalDurationSeconds / 60)) min). Reverting to scheduled basal."
+            )
+        }
+
+        // Rule 5: Max temp basal age exceeded
         if config.maxTempBasalAgeSeconds > 0, age >= config.maxTempBasalAgeSeconds {
             return .cancelTempBasal(
                 reason: "Temp basal exceeded max age allowance (\(Int(config.maxTempBasalAgeSeconds / 60)) min). Reverting to scheduled basal."
             )
         }
 
-        // Rule 5: Basal floor active too long
-        let floorActive = tempBasalRateUph <= config.minBasalFloorUph + SafetyGuardsConfig.basalRateEpsilon
+        // Rule 6: Basal floor active too long
+        let floorActive = tempBasalRateUph <= config.minTempBasalFloorUph + SafetyGuardsConfig.dashBasalEpsilon
         if floorActive, age >= SafetyGuardsConfig.maxFloorActiveSeconds {
             return .cancelTempBasal(
-                reason: "Minimum basal floor (\(config.minBasalFloorUph) U/hr) active ≥ \(Int(SafetyGuardsConfig.maxFloorActiveSeconds / 60)) min; reverting to scheduled basal."
+                reason: "Minimum basal floor (\(config.minTempBasalFloorUph) U/hr) active ≥ \(Int(SafetyGuardsConfig.maxFloorActiveSeconds / 60)) min; reverting to scheduled basal."
             )
         }
-
         return .none
     }
 }
 
-enum TempBasalInterferencePolicy {
-    static func canInterfere(isManualTempBasal: Bool, allowWhenManual: Bool) -> Bool {
-        !isManualTempBasal || allowWhenManual
+// SAFETY_GUARDS
+enum TempBasalOverridePolicy {
+    static func canOverrideManual(
+        tempBasalSource: TempBasalSource,
+        allowWhenManual: Bool
+    ) -> Bool {
+        switch tempBasalSource {
+        case .manual:
+            return allowWhenManual
+        case .automatic, .unknown, .none:
+            return true
+        }
     }
 }

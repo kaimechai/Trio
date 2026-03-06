@@ -421,7 +421,10 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
     // SAFETY_GUARDS
     private func notifySafetyBasalRevert(_ message: String) {
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "Trio Safety Revert", comment: "Safety revert notification title")
+        content.title = String(
+            localized: "Trio Safety Revert",
+            comment: "Reverted to scheduled basal for safety. Please verify delivery."
+        )
         content.body = message
         content.sound = .default
 

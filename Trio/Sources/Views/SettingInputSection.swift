@@ -180,14 +180,14 @@ struct SettingInputSection<VerboseHint: View>: View {
         case "maxBasal":
             return pickerSettingsProvider.settings.maxBasal
         // SAFETY_GUARDS
-        case "maxTempBasalDurationMinutes":
-            return pickerSettingsProvider.settings.maxTempBasalDurationMinutes
-        case "maxTempBasalAgeMinutes":
-            return pickerSettingsProvider.settings.maxTempBasalAgeMinutes
         case "cgmStaleMinutes":
             return pickerSettingsProvider.settings.cgmStaleMinutes
         case "minTempBasalFloorUph":
             return pickerSettingsProvider.settings.minTempBasalFloorUph
+        case "maxTempBasalDurationMinutes":
+            return pickerSettingsProvider.settings.maxTempBasalDurationMinutes
+        case "maxTempBasalAgeMinutes":
+            return pickerSettingsProvider.settings.maxTempBasalAgeMinutes
         default:
             return nil
         }

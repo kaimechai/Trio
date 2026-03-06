@@ -54,11 +54,11 @@ struct Preferences: JSON, Equatable {
     var threshold_setting: Decimal = 60
     var updateInterval: Decimal = 20
     // SAFETY_GUARDS
+    var allowOverrideManualTempBasal: Bool = false
+    var cgmStaleMinutes: Decimal = 15 // stale CGM revert
+    var minTempBasalFloorUph: Decimal = 0.05 // DASH increment
     var maxTempBasalDurationMinutes: Decimal = 30 // DASH legal: 30..720 (cancel is 0 but UI can avoid 0)
     var maxTempBasalAgeMinutes: Decimal = 30 // watchdog cancel if active too long
-    var cgmStaleMinutes: Decimal = 15 // stale CGM revert
-    var allowOverrideManualTempBasal: Bool = false
-    var minTempBasalFloorUph: Decimal = 0.05 // DASH increment
 }
 
 extension Preferences {
@@ -115,11 +115,11 @@ extension Preferences {
         case threshold_setting
         case updateInterval
         // SAFETY_GUARDS
+        case allowOverrideManualTempBasal
+        case cgmStaleMinutes
+        case minTempBasalFloorUph
         case maxTempBasalDurationMinutes
         case maxTempBasalAgeMinutes
-        case cgmStaleMinutes
-        case allowOverrideManualTempBasal
-        case minTempBasalFloorUph
     }
 }
 
@@ -341,20 +341,20 @@ extension Preferences: Decodable {
         }
 
         // SAFETY_GUARDS
+        if let v = try? container.decode(Bool.self, forKey: .allowOverrideManualTempBasal) {
+            preferences.allowOverrideManualTempBasal = v
+        }
+        if let v = try? container.decode(Decimal.self, forKey: .cgmStaleMinutes) {
+            preferences.cgmStaleMinutes = v
+        }
+        if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {
+            preferences.minTempBasalFloorUph = v
+        }
         if let v = try? container.decode(Decimal.self, forKey: .maxTempBasalDurationMinutes) {
             preferences.maxTempBasalDurationMinutes = v
         }
         if let v = try? container.decode(Decimal.self, forKey: .maxTempBasalAgeMinutes) {
             preferences.maxTempBasalAgeMinutes = v
-        }
-        if let v = try? container.decode(Decimal.self, forKey: .cgmStaleMinutes) {
-            preferences.cgmStaleMinutes = v
-        }
-        if let v = try? container.decode(Bool.self, forKey: .allowOverrideManualTempBasal) {
-            preferences.allowOverrideManualTempBasal = v
-        }
-        if let v = try? container.decode(Decimal.self, forKey: .minTempBasalFloorUph) {
-            preferences.minTempBasalFloorUph = v
         }
 
         self = preferences

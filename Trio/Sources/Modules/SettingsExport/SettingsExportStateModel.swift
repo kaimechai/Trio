@@ -617,7 +617,7 @@ extension SettingsExport {
                 addSetting(
                     category: algorithmCategory,
                     subcategory: safetySubcategory,
-                    name: String(localized: "Enable Override or Cancel of Manual Temp Basal"),
+                    name: String(localized: "Enable Override or Cancel Manual Temp Basal"),
                     value: preferences
                         .allowOverrideManualTempBasal ? String(localized: "Enabled") : String(localized: "Disabled")
                 )
