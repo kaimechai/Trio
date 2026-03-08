@@ -260,6 +260,7 @@
 		3BD9687F2D8DDD8800899469 /* CryptoSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3BD9687E2D8DDD8800899469 /* CryptoSwift */; };
 		3BF85FE32E427312000D7351 /* IOBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BF85FE12E427312000D7351 /* IOBService.swift */; };
 		3E28F2AB2EB5337F00FB9EEB /* ConnectIQ in Frameworks */ = {isa = PBXBuildFile; productRef = 3E28F2AA2EB5337F00FB9EEB /* ConnectIQ */; };
+		44E789652F5BE993008FF6DA /* SafetyGuardsConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E789642F5BE988008FF6DA /* SafetyGuardsConfig.swift */; };
 		45252C95D220E796FDB3B022 /* ConfigEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8A87AA037BD079BA3528BA /* ConfigEditorDataFlow.swift */; };
 		45717281F743594AA9D87191 /* ConfigEditorRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 920DDB21E5D0EB813197500D /* ConfigEditorRootView.swift */; };
 		491D6FBD2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491D6FBC2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift */; };
@@ -1094,6 +1095,8 @@
 		3F8A87AA037BD079BA3528BA /* ConfigEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigEditorDataFlow.swift; sourceTree = "<group>"; };
 		42369F66CF91F30624C0B3A6 /* BasalProfileEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BasalProfileEditorProvider.swift; sourceTree = "<group>"; };
 		44080E4709E3AE4B73054563 /* ConfigEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigEditorProvider.swift; sourceTree = "<group>"; };
+		44E789632F5BE972008FF6DA /* SafetyGuards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyGuards.swift; sourceTree = "<group>"; };
+		44E789642F5BE988008FF6DA /* SafetyGuardsConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyGuardsConfig.swift; sourceTree = "<group>"; };
 		491D6FB92D56741C00C49F67 /* TempTargetRunStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetRunStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		491D6FBA2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetRunStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TempTargetStored+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -2169,6 +2172,8 @@
 			children = (
 				CE95BF562BA5F5FE00DC3DE3 /* PluginManager.swift */,
 				3811DF0F25CAAAE200A708ED /* APSManager.swift */,
+				44E789632F5BE972008FF6DA /* SafetyGuards.swift */,
+				44E789642F5BE988008FF6DA /* SafetyGuardsConfig.swift */,
 				38BF021E25E7F0DE00579895 /* DeviceDataManager.swift */,
 				38DAB289260D349500F74C1A /* FetchGlucoseManager.swift */,
 				38192E06261BA9960094D973 /* FetchTreatmentsManager.swift */,
@@ -4560,6 +4565,7 @@
 				58F107742BD1A4D000B1A680 /* Determination+helper.swift in Sources */,
 				38FEF413273B317A00574A46 /* HKUnit.swift in Sources */,
 				A33352ED40476125EBAC6EE0 /* CarbRatioEditorDataFlow.swift in Sources */,
+				44E789652F5BE993008FF6DA /* SafetyGuardsConfig.swift in Sources */,
 				17A9D0899046B45E87834820 /* CarbRatioEditorProvider.swift in Sources */,
 				69B9A368029F7EB39F525422 /* CarbRatioEditorStateModel.swift in Sources */,
 				118DF76B2C5ECBC60067FEB7 /* CancelOverrideIntent.swift in Sources */,
