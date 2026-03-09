@@ -69,6 +69,37 @@ enum APSError: LocalizedError {
     }
 }
 
+// SafetyGuards
+struct TempBasalState: Equatable {
+    let isActive: Bool
+    let isManual: Bool
+    let rate: Decimal
+    let startDate: Date?
+    let configuredMinutes: Int?
+    let elapsedMinutes: Int?
+    let remainingMinutes: Int
+}
+
+//SafetyGuards - Staleness
+struct StalenessState: Equatable {
+    let glucoseMissing: Bool
+    let glucoseStale: Bool
+    let loopStale: Bool
+}
+
+//SafetyGuards - Watchdog
+enum SafetyCancelReason: String, Equatable {
+    case staleGlucose
+    case staleLoop
+    case maxTempBasalAgeExceeded
+}
+
+//SafetyGuards - Watchdog
+enum SafetyWatchdogResult: Equatable {
+    case takeNoAction
+    case cancelTempBasal(reasons: [SafetyCancelReason])
+}
+
 final class BaseAPSManager: APSManager, Injectable {
     private let processQueue = DispatchQueue(label: "BaseAPSManager.processQueue")
     @Injected() private var storage: FileStorage!
@@ -203,17 +234,23 @@ final class BaseAPSManager: APSManager, Injectable {
             }
             .store(in: &lifetime)
 
-        // manage a manual Temp Basal from PumpManager - force loop() after manual temp basal is cancelled or finishes
+        // manage manual Temp Basal from PumpManager - force loop() after manual temp basal is cancelled or finishes
         deviceDataManager.manualTempBasal
+            .removeDuplicates() //added by SafetyGuards
             .receive(on: processQueue)
-            .sink { manualBasal in
-                if manualBasal {
-                    self.isManualTempBasal = true
-                } else {
-                    if self.isManualTempBasal {
-                        self.isManualTempBasal = false
-                        self.loop()
-                    }
+            
+            //SafetyGuards edited:
+            .sink { [weak self] manualBasal in
+                guard let self else {return}
+                
+                let wasManualTempBasal = self.isManualTempBasal // true
+                self.isManualTempBasal = nowManualTempBasal // now false
+                
+                if wasManualTempBasal && !nowManualTempBasal {
+                    debug(.apsManager, "Manual temp basal ended -> forcing loop()")
+                    self.loop()
+                } else if !wasManualTempBasal && nowManualTempBasal {
+                    debug(.apsManager, "Manual temp basal started")
                 }
             }
             .store(in: &lifetime)
@@ -223,6 +260,39 @@ final class BaseAPSManager: APSManager, Injectable {
         deviceDataManager.heartbeat(date: date)
     }
 
+    // SafetyGuards - Watchdog
+    private func evaluateSafetyWatchdog(
+        tempBasalState: TempBasalState,
+        stalenessState: StalenessState,
+        maxTempBasalAgeMinutes: Int
+    ) -> SafetyWatchdogResult {
+        guard tempBasalState.isActive else {
+            return .takeNoAction
+        }
+
+        if tempBasalState.isManual {
+            return .takeNoAction
+        }
+
+        var reasons: [SafetyCancelReason] = []
+
+        if stalenessState.glucoseStale {
+            reasons.append(.staleGlucose)
+        }
+
+        if stalenessState.loopStale {
+            reasons.append(.staleLoop)
+        }
+
+        if let elapsedMinutes = tempBasalState.elapsedMinutes,
+           elapsedMinutes > maxTempBasalAgeMinutes
+        {
+            reasons.append(.maxTempBasalAgeExceeded)
+        }
+
+        return reasons.isEmpty ? .takeNoAction : .cancelTempBasal(reasons: reasons)
+    }
+    
     // Loop entry point
     private func loop() {
         Task { [weak self] in
@@ -627,10 +697,11 @@ final class BaseAPSManager: APSManager, Injectable {
         }
 
         guard let pump = pumpManager else { return }
-
-        // unable to do temp basal during manual temp basal 😁
-        if isManualTempBasal {
-            processError(APSError.manualBasalTemp(message: "Loop not possible during the manual basal temp"))
+        
+        // SafetyGuards Error Replacement
+        // Loop not possible during manual temp basal
+        if let manualTempBasalError = manualTempBasalError() {
+            processError(manualTempBasalError)
             return
         }
 
@@ -703,9 +774,10 @@ final class BaseAPSManager: APSManager, Injectable {
             return // return without throwing an error
         }
 
-        // Unable to do temp basal during manual temp basal 😁
-        if isManualTempBasal {
-            throw APSError.manualBasalTemp(message: "Loop not possible during the manual basal temp")
+        // SafetyGuards Error Replacement
+        // Loop not possible during manual temp basal
+        if let manualTempBasalError = manualTempBasalError() {
+            throw manualTempBasalError
         }
 
         let (rateDecimal, durationInSeconds, smbToDeliver) = try await setValues(determinationID: determinationID)
@@ -718,6 +790,52 @@ final class BaseAPSManager: APSManager, Injectable {
         if let smb = smbToDeliver, smb.compare(NSDecimalNumber(value: 0)) == .orderedDescending {
             try await performBolus(pump: pump, smbToDeliver: smb)
         }
+    }
+    
+    // SafetyGuards
+    private func manualTempBasalError() -> APSError? {
+        guard isManualTempBasal else { return nil }
+
+        return APSError.manualBasalTemp(
+            message: "Loop not possible during manual temp basal."
+        )
+    }
+    
+    // SafetyGuards
+    private func tempBasalState(at date: Date) async throws -> TempBasalState {
+        let currentTemp = try await fetchCurrentTempBasal(date: date)
+
+        let remainingMinutes = max(0, currentTemp.duration)
+        let isActive = remainingMinutes > 0 || currentTemp.rate > 0
+
+        return TempBasalState(
+            isActive: isActive,
+            isManual: isManualTempBasal,
+            rate: currentTemp.rate,
+            startDate: nil,
+            configuredMinutes: nil,
+            elapsedMinutes: nil,
+            remainingMinutes: remainingMinutes
+        )
+    }
+    
+    // SafetyGuards - Staleness
+    private func stalenessState(
+        latestGlucoseDate: Date?,
+        now: Date,
+        staleGlucoseThreshold: TimeInterval,
+        staleLoopThreshold: TimeInterval
+    ) -> StalenessState {
+        let glucoseMissing = latestGlucoseDate == nil
+        let glucoseStale = latestGlucoseDate == nil || latestGlucoseDate!.addingTimeInterval(staleGlucoseThreshold) < now
+        let loopStale = lastLoopDate.addingTimeInterval(staleLoopThreshold) < now
+        // TODO: find source(s) of glucose data so they are useful and not nil
+        
+        return StalenessState(
+            glucoseMissing: glucoseMissing,
+            glucoseStale: glucoseStale,
+            loopStale: loopStale
+        )
     }
 
     private func setValues(determinationID: NSManagedObjectID) async throws
