@@ -226,25 +226,12 @@ final class BaseAPSManager: APSManager, Injectable {
             .store(in: &lifetime)
     }
 
-    // original heartbeat: func heartbeat(date: Date) {
-    // original heartbeat: deviceDataManager.heartbeat(date: date)
-    // original heartbeat: }
-
-    // SafetyGuards Beta Testing
-    // TEMPORARY SafetyGuards integration for testing.
-    // TODO: Remove after Watchdog is fully wired.
     func heartbeat(date: Date) {
-        Task { [weak self] in
-            await self?.betaTestSafetyWatchdog()
-        }
         deviceDataManager.heartbeat(date: date)
     }
 
-    // SafetyGuards Beta Testing
-    // TEMPORARY SafetyGuards integration for testing.
-    // TODO: Remove after Watchdog is fully wired.
-    private func betaTestSafetyWatchdog() async {
-        debug(.apsManager, "Safety watchdog beta test running")
+    // SafetyGuards Watchdog
+    private func runSafetyWatchdog() async -> SafetyWatchdogResult {
         do {
             let now = Date()
             let lastGlucoseDate = glucoseStorage.lastGlucoseDate()
@@ -256,15 +243,24 @@ final class BaseAPSManager: APSManager, Injectable {
                 maxTempBasalAgeMinutes: 30
             )
 
-            debug(.apsManager, "Safety watchdog beta test result: \(watchdogResult)")
+            switch watchdogResult {
+            case .takeNoAction:
+                debug(.apsManager, "Safety watchdog: takeNoAction")
+            case let .cancelTempBasal(reasons):
+                debug(.apsManager, "Safety watchdog: cancelTempBasal reasons=\(reasons)")
+            }
+
             debug(.apsManager, "Safety watchdog last glucose date: \(String(describing: lastGlucoseDate))")
             debug(.apsManager, "Safety watchdog temp basal state: \(safetyState.tempBasalState)")
             debug(.apsManager, "Safety watchdog staleness state: \(safetyState.stalenessState)")
+
+            return watchdogResult
         } catch {
-            debug(.apsManager, "Safety watchdog beta test failed: \(error)")
+            debug(.apsManager, "Safety watchdog failed: \(error)")
+            return .takeNoAction
         }
     }
-
+    
     // Loop entry point
     private func loop() {
         Task { [weak self] in
@@ -272,6 +268,9 @@ final class BaseAPSManager: APSManager, Injectable {
 
             // Check if we can start a new loop
             guard await self.canStartNewLoop() else { return }
+            
+            // SafetyGuards Watchdog
+            _ = await self.runSafetyWatchdog()
 
             // Setup loop and background task
             var (loopStatRecord, backgroundTask) = await self.setupLoop()
@@ -779,7 +778,7 @@ final class BaseAPSManager: APSManager, Injectable {
             switch basalDeliveryState {
             case let .tempBasal(dose):
                 debug(.apsManager, "Safety Guards using live dose path")
-                
+
                 let startDate = dose.startDate
                 let endDate = dose.endDate
 
@@ -798,11 +797,16 @@ final class BaseAPSManager: APSManager, Injectable {
                     remainingMinutes: remainingMinutes
                 )
 
-            case .active, .initiatingTempBasal, .cancelingTempBasal, .suspending, .suspended, .resuming:
+            case .active,
+                 .cancelingTempBasal,
+                 .initiatingTempBasal,
+                 .resuming,
+                 .suspended,
+                 .suspending:
                 break
             }
         }
-        
+
         debug(.apsManager, "Safety Guards TempBasalState using fallback path")
 
         let currentTemp = try await fetchCurrentTempBasal(date: date)
@@ -833,7 +837,7 @@ final class BaseAPSManager: APSManager, Injectable {
             $0.addingTimeInterval(staleGlucoseThreshold) < now
         } ?? false
         let loopStale = lastLoopDate.addingTimeInterval(staleLoopThreshold) < now
-        
+
         return StalenessState(
             glucoseMissing: glucoseMissing,
             glucoseStale: glucoseStale,
